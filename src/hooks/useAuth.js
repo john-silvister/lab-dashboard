@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { authService } from '../services/authService'
 
 export function useAuth() {
     const [user, setUser] = useState(null)
@@ -30,11 +31,7 @@ export function useAuth() {
 
     const fetchProfile = async (userId) => {
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
+            const { data, error } = await authService.getProfile(userId)
 
             if (error) {
                 console.error('Error fetching profile:', error)
@@ -48,5 +45,13 @@ export function useAuth() {
         }
     }
 
-    return { user, profile, loading, isAdmin: profile?.role === 'faculty' }
+    return {
+        user,
+        profile,
+        loading,
+        isAdmin: profile?.role === 'admin' || profile?.role === 'faculty',
+        signIn: authService.signIn,
+        signUp: authService.signUp,
+        signOut: authService.signOut
+    }
 }

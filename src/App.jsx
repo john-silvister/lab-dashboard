@@ -1,9 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import Navbar from '@/components/Navbar'
 import Dashboard from '@/pages/Dashboard'
-import AdminPanel from '@/pages/AdminPanel'
-import Login from '@/pages/Login'
+import Login from '@/pages/LoginPage'
+import Signup from '@/pages/SignupPage'
+import MachinesPage from '@/pages/MachinesPage'
+import AdminDashboard from '@/pages/AdminDashboard'
 import { useAuth } from '@/hooks/useAuth'
 
 function ProtectedRoute({ children, role }) {
@@ -19,41 +20,35 @@ function ProtectedRoute({ children, role }) {
   return children
 }
 
-function Layout({ children }) {
-  return (
-    <div className="min-h-screen bg-background font-sans antialiased">
-      <Navbar />
-      <main className="container mx-auto py-6 px-4">
-        {children}
-      </main>
-      <Toaster />
-    </div>
-  )
-}
-
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
         <Route path="/" element={
           <ProtectedRoute>
-            <Layout>
-              <Dashboard />
-            </Layout>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/machines" element={
+          <ProtectedRoute>
+            <MachinesPage />
           </ProtectedRoute>
         } />
 
         <Route path="/admin" element={
           <ProtectedRoute role="faculty">
-            <Layout>
-              <AdminPanel />
-            </Layout>
+            <AdminDashboard />
           </ProtectedRoute>
         } />
 
+        {/* Add other protected routes here */}
+
       </Routes>
+      <Toaster />
     </Router>
   )
 }

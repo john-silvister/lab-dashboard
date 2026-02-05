@@ -1,81 +1,127 @@
--- 1. Create Profiles table (Links to Supabase Auth)
-create table profiles (
-  id uuid references auth.users on delete cascade primary key,
-  full_name text,
-  role text check (role in ('student', 'faculty')) default 'student',
-  updated_at timestamp with time zone default timezone('utc'::text, now())
+-- 1. Profiles table (extends auth.users)
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  role TEXT CHECK (role IN ('student', 'faculty', 'admin')) DEFAULT 'student',
+  department TEXT,
+  phone TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Create Equipment table
-create table equipment (
-  id uuid default gen_random_uuid() primary key,
-  name text not null,
-  description text,
-  category text,
-  image_url text,
-  is_under_maintenance boolean default false,
-  created_at timestamp with time zone default timezone('utc'::text, now())
+-- 2. Machines table
+CREATE TABLE machines (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  department TEXT,
+  location TEXT,
+  specifications JSONB,
+  image_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  requires_training BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Create Bookings table
-create table bookings (
-  id uuid default gen_random_uuid() primary key,
-  equipment_id uuid references equipment(id) on delete cascade,
-  student_id uuid references profiles(id) on delete cascade,
-  start_time timestamp with time zone not null,
-  end_time timestamp with time zone not null,
-  status text check (status in ('pending', 'approved', 'rejected')) default 'pending',
-  denial_reason text,
-  created_at timestamp with time zone default timezone('utc'::text, now())
+-- 3. Bookings table
+CREATE TABLE bookings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  machine_id UUID REFERENCES machines(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES profiles(id),
+  booking_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  purpose TEXT NOT NULL,
+  status TEXT CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')) DEFAULT 'pending',
+  faculty_id UUID REFERENCES profiles(id),
+  faculty_comments TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT no_overlap UNIQUE (machine_id, booking_date, start_time)
+);
+
+-- 4. Booking rules table (for faculty to set constraints)
+CREATE TABLE booking_rules (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  machine_id UUID REFERENCES machines(id),
+  max_duration_hours INTEGER DEFAULT 2,
+  advance_booking_days INTEGER DEFAULT 7,
+  booking_start_hour TIME DEFAULT '09:00',
+  booking_end_hour TIME DEFAULT '18:00',
+  blackout_dates DATE[]
 );
 
 -- ENABLE RLS
-alter table profiles enable row level security;
-alter table equipment enable row level security;
-alter table bookings enable row level security;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE machines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE booking_rules ENABLE ROW LEVEL SECURITY;
 
--- POLICIES
--- Profiles: Users can read all profiles but only update their own
-create policy "Public profiles are viewable by everyone" on profiles for select using (true);
-create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
+-- Policies for profiles
+CREATE POLICY "Users can view all profiles" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
--- Equipment: Everyone can view, only Faculty can insert/update
-create policy "Equipment viewable by everyone" on equipment for select using (true);
-create policy "Faculty can manage equipment" on equipment for all 
-  using (exists (select 1 from profiles where id = auth.uid() and role = 'faculty'));
+-- Policies for machines
+CREATE POLICY "Anyone can view active machines" ON machines FOR SELECT USING (is_active = true);
+CREATE POLICY "Only admins can manage machines" ON machines FOR ALL USING (
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
+);
 
--- Bookings: Students manage own, Faculty manage all
-create policy "Users can view own bookings" on bookings for select 
-  using (auth.uid() = student_id or exists (select 1 from profiles where id = auth.uid() and role = 'faculty'));
+-- Policies for bookings
+CREATE POLICY "Students view own bookings" ON bookings FOR SELECT USING (
+  student_id = auth.uid() OR 
+  (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+);
+CREATE POLICY "Students can create bookings" ON bookings FOR INSERT WITH CHECK (
+  student_id = auth.uid() AND 
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'student'
+);
+CREATE POLICY "Faculty can update bookings" ON bookings FOR UPDATE USING (
+  (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+);
 
-create policy "Students can insert own bookings" on bookings for insert 
-  with check (auth.uid() = student_id);
+-- Policies for booking_rules
+CREATE POLICY "Anyone can view booking rules" ON booking_rules FOR SELECT USING (true);
+CREATE POLICY "Faculty can manage booking rules" ON booking_rules FOR ALL USING (
+  (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+);
 
-create policy "Faculty can update booking status" on bookings for update
-  using (exists (select 1 from profiles where id = auth.uid() and role = 'faculty'));
+-- Function to check booking conflicts
+CREATE OR REPLACE FUNCTION check_booking_conflict(
+  p_machine_id UUID,
+  p_date DATE,
+  p_start_time TIME,
+  p_end_time TIME
+) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN NOT EXISTS (
+    SELECT 1 FROM bookings
+    WHERE machine_id = p_machine_id
+    AND booking_date = p_date
+    AND status IN ('pending', 'approved')
+    AND (
+      (start_time, end_time) OVERLAPS (p_start_time, p_end_time)
+    )
+  );
+END;
+$$ LANGUAGE plpgsql;
 
--- REALTIME
--- Enable realtime for bookings and equipment (requires publication update)
--- Note: You may need to enable replication on the table settings in Supabase Dashboard too if this fails.
-begin;
-  -- Try to add tables to the publication. If publication exists, alter it.
-  -- This PL/pgSQL block handles the existence check implicitly or we just run the alter.
-  -- Simpler for SQL editor:
-end;
-
-alter publication supabase_realtime add table bookings, equipment;
-
--- TRIGGERS
 -- Handle new user signup -> Create Profile automatically
-create or replace function public.handle_new_user() 
-returns trigger as $$
-begin
-  insert into public.profiles (id, full_name, role)
-  values (new.id, new.raw_user_meta_data->>'full_name', 'student');
-  return new;
-end;
-$$ language plpgsql security definer;
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, email)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', 'student', new.email);
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+-- Trigger for new user
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE bookings, machines;
