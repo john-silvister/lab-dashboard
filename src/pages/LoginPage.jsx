@@ -7,28 +7,63 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { LogIn, Microscope, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { securityUtils } from '@/lib/security';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loginAttempts, setLoginAttempts] = useState(0);
     const { signIn } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+
+        // Prevent double submission
+        if (loading) return;
+
         try {
-            const { error } = await signIn(email, password);
-            if (error) throw error;
+            // Security: Sanitize inputs
+            const sanitizedEmail = securityUtils.sanitizeInput(email).toLowerCase().trim();
+
+            // Security: Validate email format
+            if (!securityUtils.validateEmail(sanitizedEmail)) {
+                toast.error('Please enter a valid email address');
+                return;
+            }
+
+            // Security: Basic rate limiting (client-side)
+            if (loginAttempts >= 5) {
+                toast.error('Too many login attempts. Please wait a few minutes before trying again.');
+                return;
+            }
+
+            setLoading(true);
+
+            const { error } = await signIn(sanitizedEmail, password);
+            if (error) {
+                setLoginAttempts(prev => prev + 1);
+                throw error;
+            }
+
+            // Reset login attempts on successful login
+            setLoginAttempts(0);
             toast.success('Successfully logged in');
             navigate('/');
         } catch (error) {
-            toast.error(error.message);
+            securityUtils.secureLog('warn', 'Login failed', { email: securityUtils.maskEmail(email), attempts: loginAttempts + 1 });
+            toast.error(error.message || 'Login failed');
         } finally {
             setLoading(false);
         }
+    };
+
+    // Security: Sanitize input handlers
+    const handleEmailChange = (e) => {
+        const sanitized = securityUtils.sanitizeInput(e.target.value);
+        setEmail(sanitized);
     };
 
     return (
@@ -51,16 +86,17 @@ const LoginPage = () => {
 
                 <Card className="border-border/50 shadow-xl backdrop-blur-xl bg-card/80">
                     <CardContent className="pt-6">
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium leading-none">Email</label>
                                 <Input
                                     type="email"
                                     placeholder="your@university.edu"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={handleEmailChange}
                                     required
                                     autoComplete="email"
+                                    maxLength={254}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -73,6 +109,7 @@ const LoginPage = () => {
                                         required
                                         autoComplete="current-password"
                                         className="pr-10"
+                                        maxLength={128}
                                     />
                                     <button
                                         type="button"

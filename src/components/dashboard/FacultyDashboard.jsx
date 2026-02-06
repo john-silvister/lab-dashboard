@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,13 @@ const FacultyDashboard = () => {
     const [rejectReason, setRejectReason] = useState('');
     const [detailBooking, setDetailBooking] = useState(null);
 
+    const fetchPending = useCallback(async () => {
+        setLoading(true);
+        const { data, error } = await bookingService.getPendingBookings();
+        if (!error && data) setPendingBookings(data);
+        setLoading(false);
+    }, []);
+
     useEffect(() => {
         fetchPending();
         const channel = supabase
@@ -26,14 +33,7 @@ const FacultyDashboard = () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchPending())
             .subscribe();
         return () => supabase.removeChannel(channel);
-    }, []);
-
-    const fetchPending = async () => {
-        setLoading(true);
-        const { data, error } = await bookingService.getPendingBookings();
-        if (!error && data) setPendingBookings(data);
-        setLoading(false);
-    };
+    }, [fetchPending]);
 
     const handleApprove = async (bookingId) => {
         const { error } = await bookingService.updateBookingStatus(bookingId, 'approved');

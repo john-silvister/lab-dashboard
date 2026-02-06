@@ -12,6 +12,7 @@ const MachineManager = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMachine, setEditingMachine] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -34,6 +35,18 @@ const MachineManager = () => {
         setLoading(false);
     };
 
+    const resetForm = () => {
+        setFormData({
+            name: '',
+            description: '',
+            department: '',
+            location: '',
+            image_url: '',
+            is_active: true
+        });
+        setEditingMachine(null);
+    };
+
     const handleOpenModal = (machine = null) => {
         if (machine) {
             setEditingMachine(machine);
@@ -46,29 +59,84 @@ const MachineManager = () => {
                 is_active: machine.is_active
             });
         } else {
-            setEditingMachine(null);
-            setFormData({
-                name: '',
-                description: '',
-                department: '',
-                location: '',
-                image_url: '',
-                is_active: true
-            });
+            resetForm();
         }
         setIsModalOpen(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Prevent double submission
+        if (submitting) return;
+        
+        setSubmitting(true);
+        
         try {
-            // Mocking create/update for now
-            // await machineService.upsert(formData);
-            toast.success(editingMachine ? 'Machine updated' : 'Machine created');
+            let result;
+            
+            if (editingMachine) {
+                // Optimistic update for editing
+                const optimisticMachine = { ...editingMachine, ...formData };
+                setMachines(prev => prev.map(m => m.id === editingMachine.id ? optimisticMachine : m));
+                
+                result = await machineService.updateMachine(editingMachine.id, formData);
+                if (result.error) throw result.error;
+                
+                toast.success('Machine updated successfully');
+            } else {
+                result = await machineService.createMachine(formData);
+                if (result.error) throw result.error;
+                
+                // Add new machine to list optimistically
+                if (result.data) {
+                    setMachines(prev => [result.data, ...prev]);
+                }
+                
+                toast.success('Machine created successfully');
+            }
+            
             setIsModalOpen(false);
-            fetchMachines(); // In real app, this would refresh the list
+            resetForm();
+            
+            // Refresh in background to ensure consistency
+            setTimeout(() => fetchMachines(), 1000);
+            
         } catch (error) {
-            toast.error('Failed to save machine');
+            console.error('Error saving machine:', error);
+            
+            // Revert optimistic update on error
+            if (editingMachine) {
+                fetchMachines();
+            }
+            
+            toast.error(error.message || 'Failed to save machine');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (machine) => {
+        if (!window.confirm(`Are you sure you want to delete "${machine.name}"? This action cannot be undone.`)) {
+            return;
+        }
+        
+        // Optimistic update - remove from UI immediately
+        const originalMachines = [...machines];
+        setMachines(prev => prev.filter(m => m.id !== machine.id));
+        
+        try {
+            const { error } = await machineService.deleteMachine(machine.id);
+            if (error) throw error;
+            
+            toast.success('Machine deleted successfully');
+        } catch (error) {
+            console.error('Error deleting machine:', error);
+            
+            // Revert optimistic update on error
+            setMachines(originalMachines);
+            
+            toast.error(error.message || 'Failed to delete machine');
         }
     };
 
@@ -101,7 +169,7 @@ const MachineManager = () => {
                             <Button variant="ghost" size="icon" onClick={() => handleOpenModal(machine)}>
                                 <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(machine)}>
                                 <Trash className="h-4 w-4" />
                             </Button>
                         </div>
@@ -148,8 +216,10 @@ const MachineManager = () => {
                             />
                         </div>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                            <Button type="submit">Save Changes</Button>
+                            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={submitting}>Cancel</Button>
+                            <Button type="submit" disabled={submitting}>
+                                {submitting ? 'Saving...' : 'Save Changes'}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

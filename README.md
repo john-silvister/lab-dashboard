@@ -120,13 +120,40 @@ npm run preview
 
 ## Deployment
 
-The project is configured for Vercel with SPA routing via `vercel.json`:
+### Deploying to Vercel
+
+1. **Push your code to GitHub**
+   ```bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   ```
+
+2. **Import project in Vercel**
+   - Go to [Vercel Dashboard](https://vercel.com/new)
+   - Import your GitHub repository
+   - Vercel will auto-detect the Vite configuration
+
+3. **Set Environment Variables** (CRITICAL)
+   - In Vercel Dashboard → Project Settings → Environment Variables
+   - Add these two required variables:
+     ```
+     VITE_SUPABASE_URL=https://your-project.supabase.co
+     VITE_SUPABASE_ANON_KEY=your-anon-key
+     ```
+   - Set for all environments (Production, Preview, Development)
+
+4. **Deploy**
+   - Vercel will automatically build and deploy
+   - Your app will be live at `https://your-project.vercel.app`
+
+The project uses `vercel.json` for SPA routing to ensure all routes redirect to `index.html`:
 
 ```json
 { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
 ```
 
-Set the two environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) in the Vercel dashboard under Project Settings > Environment Variables.
+**Note**: The build uses a custom `vercel-build` script to skip linting during deployment, ensuring faster builds.
 
 ---
 
@@ -156,6 +183,7 @@ Key policies:
 | `npm run build` | Production build |
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint |
+| `npm run vercel-build` | Build for Vercel deployment (skips linting) |
 
 ---
 

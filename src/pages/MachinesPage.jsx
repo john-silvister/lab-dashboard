@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import MachineCard from '@/components/machines/MachineCard';
 import { machineService } from '@/services/machineService';
@@ -20,16 +20,17 @@ const MachinesPage = () => {
     const [selectedMachine, setSelectedMachine] = useState(null);
     const [isBookModalOpen, setIsBookModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    useEffect(() => {
-        fetchMachines();
-    }, [filters]);
 
-    const fetchMachines = async () => {
+    const fetchMachines = useCallback(async () => {
         setLoading(true);
         const { data } = await machineService.getMachines(filters);
         if (data) setMachines(data);
         setLoading(false);
-    };
+    }, [filters]);
+
+    useEffect(() => {
+        fetchMachines();
+    }, [fetchMachines]);
 
     const filteredMachines = machines.filter(m =>
         m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -127,7 +128,6 @@ const MachinesPage = () => {
                     onClose={() => setIsBookModalOpen(false)}
                     onSuccess={() => {
                         // Optionally refresh machines or show confetti
-                        console.log("Booking success");
                     }}
                 />
             )}

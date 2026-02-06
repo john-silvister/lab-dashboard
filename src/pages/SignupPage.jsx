@@ -7,8 +7,26 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { UserPlus, Microscope, Eye, EyeOff, GraduationCap, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { securityUtils } from '@/lib/security';
 
-const DEPARTMENTS = ['CSE', 'ECE', 'Mechanical', 'Civil', 'Chemical', 'Physics', 'Mathematics'];
+const DEPARTMENTS = ['CSE', 'ECE', 'EEE', 'Mechanical', 'Civil'];
+
+// Generate dynamic year options for passout
+const generatePassoutYears = () => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0-11, June is 5
+
+    // If it's June or later, include next year, otherwise start from current year
+    const startYear = currentMonth >= 5 ? currentYear + 1 : currentYear;
+    const endYear = startYear + 4;
+
+    const years = [];
+    for (let year = startYear; year <= endYear; year++) {
+        years.push(year.toString());
+    }
+    return years;
+};
 
 const SignupPage = () => {
     const [fullName, setFullName] = useState('');
@@ -16,6 +34,10 @@ const SignupPage = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [department, setDepartment] = useState('');
+    const [phone, setPhone] = useState('');
+    const [registerNumber, setRegisterNumber] = useState('');
+    const [specialization, setSpecialization] = useState('');
+    const [yearOfPassout, setYearOfPassout] = useState('');
     const [role, setRole] = useState('student');
     const [loading, setLoading] = useState(false);
     const { signUp } = useAuth();
@@ -23,25 +45,137 @@ const SignupPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (password.length < 6) {
-            toast.error('Password must be at least 6 characters');
-            return;
-        }
-        setLoading(true);
+
+        // Prevent double submission
+        if (loading) return;
+
         try {
-            const { error } = await signUp(email, password, {
-                full_name: fullName,
+            // Security: Sanitize all inputs
+            const sanitizedFullName = securityUtils.sanitizeInput(fullName);
+            const sanitizedEmail = securityUtils.sanitizeInput(email).toLowerCase().trim();
+            const sanitizedDepartment = securityUtils.sanitizeInput(department);
+            const sanitizedPhone = securityUtils.sanitizeInput(phone);
+            const sanitizedRegisterNumber = securityUtils.sanitizeInput(registerNumber);
+            const sanitizedSpecialization = securityUtils.sanitizeInput(specialization);
+            const sanitizedYearOfPassout = securityUtils.sanitizeInput(yearOfPassout);
+
+            // Security: Validate email domain based on role
+            const isValidStudentEmail = sanitizedEmail.endsWith('@btech.christuniversity.in');
+            const isValidFacultyEmail = sanitizedEmail.endsWith('@christuniversity.in');
+
+            if (role === 'student' && !isValidStudentEmail) {
+                toast.error('Students must use @btech.christuniversity.in email addresses');
+                return;
+            }
+
+            if (role === 'faculty' && !isValidFacultyEmail) {
+                toast.error('Faculty must use @christuniversity.in email addresses');
+                return;
+            }
+
+            // Security: Validate email format
+            if (!securityUtils.validateEmail(sanitizedEmail)) {
+                toast.error('Please enter a valid email address');
+                return;
+            }
+
+            // Security: Validate password strength
+            if (!securityUtils.validatePassword(password)) {
+                toast.error('Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character');
+                return;
+            }
+
+            // Security: Validate required fields
+            if (!sanitizedFullName || sanitizedFullName.length < 2) {
+                toast.error('Please enter a valid full name');
+                return;
+            }
+
+            if (!sanitizedDepartment || !DEPARTMENTS.includes(sanitizedDepartment)) {
+                toast.error('Please select a valid department');
+                return;
+            }
+
+            // Security: Validate student-specific fields
+            if (role === 'student') {
+                if (!securityUtils.validatePhoneNumber(sanitizedPhone)) {
+                    toast.error('Please enter a valid phone number');
+                    return;
+                }
+
+                if (!sanitizedRegisterNumber || sanitizedRegisterNumber.length < 6) {
+                    toast.error('Please enter a valid register number');
+                    return;
+                }
+
+                if (!sanitizedSpecialization || sanitizedSpecialization.length < 2) {
+                    toast.error('Please enter a valid specialization');
+                    return;
+                }
+
+                if (!sanitizedYearOfPassout || !generatePassoutYears().includes(sanitizedYearOfPassout)) {
+                    toast.error('Please select a valid year of passout');
+                    return;
+                }
+            }
+
+            setLoading(true);
+
+            const metadata = {
+                full_name: sanitizedFullName,
                 role,
-                department,
-            });
+                department: sanitizedDepartment,
+            };
+
+            // Add student-specific fields
+            if (role === 'student') {
+                metadata.phone = sanitizedPhone;
+                metadata.register_number = sanitizedRegisterNumber;
+                metadata.specialization = sanitizedSpecialization;
+                metadata.year_of_passout = sanitizedYearOfPassout;
+            }
+
+            const { error } = await signUp(sanitizedEmail, password, metadata);
             if (error) throw error;
+
             toast.success('Account created! Please verify your email.');
             navigate('/login');
         } catch (error) {
-            toast.error(error.message);
+            securityUtils.secureLog('error', 'Signup form submission failed', error.message);
+            toast.error(error.message || 'An error occurred during signup');
         } finally {
             setLoading(false);
         }
+    };
+
+    // Security: Sanitize input handlers
+    const handleFullNameChange = (e) => {
+        const sanitized = securityUtils.sanitizeInput(e.target.value);
+        setFullName(sanitized);
+    };
+
+    const handleEmailChange = (e) => {
+        const sanitized = securityUtils.sanitizeInput(e.target.value);
+        setEmail(sanitized);
+    };
+
+    const handlePhoneChange = (e) => {
+        const sanitized = securityUtils.sanitizeInput(e.target.value);
+        // Allow only numbers, spaces, hyphens, and plus signs for phone
+        const phoneOnly = sanitized.replace(/[^0-9\s\-+]/g, '');
+        setPhone(phoneOnly);
+    };
+
+    const handleRegisterNumberChange = (e) => {
+        const sanitized = securityUtils.sanitizeInput(e.target.value);
+        // Allow only alphanumeric characters for register number
+        const alphaNumericOnly = sanitized.replace(/[^a-zA-Z0-9]/g, '');
+        setRegisterNumber(alphaNumericOnly);
+    };
+
+    const handleSpecializationChange = (e) => {
+        const sanitized = securityUtils.sanitizeInput(e.target.value);
+        setSpecialization(sanitized);
     };
 
     return (
@@ -64,34 +198,39 @@ const SignupPage = () => {
 
                 <Card className="border-border/50 shadow-xl backdrop-blur-xl bg-card/80">
                     <CardContent className="pt-6">
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Full Name</label>
                                 <Input
                                     placeholder="John Doe"
                                     value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
+                                    onChange={handleFullNameChange}
                                     required
                                     autoComplete="name"
+                                    maxLength={100}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Email</label>
                                 <Input
                                     type="email"
-                                    placeholder="your@university.edu"
+                                    placeholder={role === 'student' ? 'your.name@btech.christuniversity.in' : 'your.name@christuniversity.in'}
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={handleEmailChange}
                                     required
                                     autoComplete="email"
+                                    maxLength={254}
                                 />
+                                <p className="text-xs text-muted-foreground">
+                                    {role === 'student' ? 'Students must use @btech.christuniversity.in' : 'Faculty must use @christuniversity.in'}
+                                </p>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Department</label>
                                 <select
                                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                     value={department}
-                                    onChange={(e) => setDepartment(e.target.value)}
+                                    onChange={(e) => setDepartment(securityUtils.sanitizeInput(e.target.value))}
                                     required
                                 >
                                     <option value="">Select Department</option>
@@ -100,6 +239,61 @@ const SignupPage = () => {
                                     ))}
                                 </select>
                             </div>
+
+                            {role === 'student' && (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Phone Number</label>
+                                        <Input
+                                            type="tel"
+                                            placeholder="+91 xxxxxxxxxx"
+                                            value={phone}
+                                            onChange={handlePhoneChange}
+                                            required
+                                            autoComplete="tel"
+                                            maxLength={20}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Register Number</label>
+                                        <Input
+                                            placeholder="2xxxxxx"
+                                            value={registerNumber}
+                                            onChange={handleRegisterNumberChange}
+                                            required
+                                            autoComplete="off"
+                                            maxLength={20}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Specialization</label>
+                                        <Input
+                                            placeholder="E.g., Data Science, AI/ML, IoT, Cybersecurity"
+                                            value={specialization}
+                                            onChange={handleSpecializationChange}
+                                            required
+                                            autoComplete="off"
+                                            maxLength={100}
+                                        />
+                                        <p className="text-xs text-muted-foreground">Mention your course</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Year of Passout</label>
+                                        <select
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                            value={yearOfPassout}
+                                            onChange={(e) => setYearOfPassout(securityUtils.sanitizeInput(e.target.value))}
+                                            required
+                                        >
+                                            <option value="">Select Year</option>
+                                            {generatePassoutYears().map(year => (
+                                                <option key={year} value={year}>{year}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">I am a</label>
                                 <div className="grid grid-cols-2 gap-3">
@@ -137,9 +331,10 @@ const SignupPage = () => {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
-                                        minLength={6}
+                                        minLength={8}
                                         autoComplete="new-password"
                                         className="pr-10"
+                                        maxLength={128}
                                     />
                                     <button
                                         type="button"
@@ -150,7 +345,7 @@ const SignupPage = () => {
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </button>
                                 </div>
-                                <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
+                                <p className="text-xs text-muted-foreground">Must be at least 8 characters with uppercase, lowercase, number, and special character</p>
                             </div>
                             <Button type="submit" className="w-full font-bold" disabled={loading}>
                                 <UserPlus className="mr-2 h-4 w-4" /> {loading ? 'Creating...' : 'Create Account'}

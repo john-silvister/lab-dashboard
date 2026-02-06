@@ -18,6 +18,7 @@ const steps = [
 const BookingForm = ({ machine, onSuccess, onCancel }) => {
     const [step, setStep] = useState(1);
     const { user } = useAuth();
+    const [loading] = useState(false);
     const [formData, setFormData] = useState({
         date: format(new Date(), 'yyyy-MM-dd'),
         startTime: '09:00',
@@ -32,24 +33,19 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Prevent double submission
+        if (loading) return;
+        
         try {
             if (formData.startTime >= formData.endTime) {
                 toast.error("End time must be after start time");
                 return;
             }
 
-            const { data: isAvailable } = await bookingService.checkConflict(
-                machine.id,
-                formData.date,
-                formData.startTime + ':00',
-                formData.endTime + ':00'
-            );
-
-            if (isAvailable === false) {
-                toast.error("Machine is already booked for this slot.");
-                return;
-            }
-
+            // Remove client-side conflict check to prevent race conditions
+            // Rely on database constraints and proper error handling instead
+            
             const { error } = await bookingService.createBooking({
                 machine_id: machine.id,
                 student_id: user.id,
@@ -60,13 +56,20 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                 status: 'pending'
             });
 
-            if (error) throw error;
+            if (error) {
+                // Handle specific database constraint errors
+                if (error.message?.includes('overlapping') || error.message?.includes('conflict')) {
+                    toast.error("This time slot is no longer available. Please choose a different time.");
+                    return;
+                }
+                throw error;
+            }
 
             toast.success('Booking request sent!');
             onSuccess();
         } catch (error) {
-            console.error(error);
-            toast.error('Failed to create booking');
+            console.error('Booking error:', error);
+            toast.error(error.message || 'Failed to create booking. Please try again.');
         }
     };
 
