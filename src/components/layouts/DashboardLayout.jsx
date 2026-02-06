@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
-import { AppSidebar } from '../AppSidebar';
+import { AppSidebar } from '@/components/AppSidebar';
 import { Menu, X, Microscope, LogOut, LayoutDashboard, Calendar, Settings } from 'lucide-react';
-import { Button } from '../ui/button';
-import { useAuth } from '../../hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 import { Link, useLocation } from 'react-router-dom';
-import { cn } from '../../lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet'; // We need to create sheet or use dialog logic
-// Actually I haven't created 'sheet' component yet. I better create a simple MobileNav implementation here or use the Dialog.
-// Sheet is best for mobile sidebar. I will implement a quick Sheet subset here or in `src/components/ui/sheet.jsx`. 
-// I'll stick to a simple mobile navigation within this file for now to avoid dependency hell if I missed Sheet.
-// Or I can use my new Dialog for mobile menu, styled as a sidebar?
-// Let's create `Sheet` component quickly in next step, but for now I'll use a fixed overlay div for mobile.
+import { cn } from '@/lib/utils';
 
 const MobileNav = ({ navItems, currentPath, onSignOut }) => {
     const [open, setOpen] = useState(false);

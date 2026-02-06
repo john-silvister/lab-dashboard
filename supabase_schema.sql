@@ -1,3 +1,11 @@
+-- ============================================================
+-- Lab Dashboard - Supabase Schema
+-- ============================================================
+-- Tables: profiles, machines, bookings, booking_rules
+-- Features: RLS, conflict-check RPC, auto-profile trigger,
+--           realtime publication, performance indexes
+-- ============================================================
+
 -- 1. Profiles table (extends auth.users)
 CREATE TABLE profiles (
   id UUID REFERENCES auth.users PRIMARY KEY,
@@ -44,7 +52,7 @@ CREATE TABLE bookings (
 -- 4. Booking rules table (for faculty to set constraints)
 CREATE TABLE booking_rules (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  machine_id UUID REFERENCES machines(id),
+  machine_id UUID REFERENCES machines(id) ON DELETE CASCADE,
   max_duration_hours INTEGER DEFAULT 2,
   advance_booking_days INTEGER DEFAULT 7,
   booking_start_hour TIME DEFAULT '09:00',
@@ -52,42 +60,95 @@ CREATE TABLE booking_rules (
   blackout_dates DATE[]
 );
 
--- ENABLE RLS
+-- ============================================================
+-- Indexes for query performance
+-- ============================================================
+CREATE INDEX idx_bookings_student ON bookings (student_id);
+CREATE INDEX idx_bookings_machine_date ON bookings (machine_id, booking_date);
+CREATE INDEX idx_bookings_status ON bookings (status);
+CREATE INDEX idx_bookings_created_at ON bookings (created_at DESC);
+CREATE INDEX idx_machines_active ON machines (is_active);
+CREATE INDEX idx_profiles_role ON profiles (role);
+
+-- ============================================================
+-- Row Level Security
+-- ============================================================
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE machines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_rules ENABLE ROW LEVEL SECURITY;
 
 -- Policies for profiles
-CREATE POLICY "Users can view all profiles" ON profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can view all profiles"
+  ON profiles FOR SELECT USING (true);
+
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Policies for machines
-CREATE POLICY "Anyone can view active machines" ON machines FOR SELECT USING (is_active = true);
-CREATE POLICY "Only admins can manage machines" ON machines FOR ALL USING (
-  (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
-);
+CREATE POLICY "Anyone can view active machines"
+  ON machines FOR SELECT USING (is_active = true);
+
+CREATE POLICY "Faculty can view all machines"
+  ON machines FOR SELECT USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
+
+CREATE POLICY "Only faculty/admin can manage machines"
+  ON machines FOR INSERT WITH CHECK (
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
+
+CREATE POLICY "Only faculty/admin can update machines"
+  ON machines FOR UPDATE USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
+
+CREATE POLICY "Only faculty/admin can delete machines"
+  ON machines FOR DELETE USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
 
 -- Policies for bookings
-CREATE POLICY "Students view own bookings" ON bookings FOR SELECT USING (
-  student_id = auth.uid() OR 
-  (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
-);
-CREATE POLICY "Students can create bookings" ON bookings FOR INSERT WITH CHECK (
-  student_id = auth.uid() AND 
-  (SELECT role FROM profiles WHERE id = auth.uid()) = 'student'
-);
-CREATE POLICY "Faculty can update bookings" ON bookings FOR UPDATE USING (
-  (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
-);
+CREATE POLICY "Students view own bookings"
+  ON bookings FOR SELECT USING (
+    student_id = auth.uid() OR
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
+
+CREATE POLICY "Students can create bookings"
+  ON bookings FOR INSERT WITH CHECK (
+    student_id = auth.uid() AND
+    (SELECT role FROM profiles WHERE id = auth.uid()) = 'student'
+  );
+
+CREATE POLICY "Students can cancel own bookings"
+  ON bookings FOR UPDATE USING (
+    student_id = auth.uid() AND
+    status IN ('pending', 'approved')
+  ) WITH CHECK (
+    status = 'cancelled'
+  );
+
+CREATE POLICY "Faculty can update any booking"
+  ON bookings FOR UPDATE USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
 
 -- Policies for booking_rules
-CREATE POLICY "Anyone can view booking rules" ON booking_rules FOR SELECT USING (true);
-CREATE POLICY "Faculty can manage booking rules" ON booking_rules FOR ALL USING (
-  (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
-);
+CREATE POLICY "Anyone can view booking rules"
+  ON booking_rules FOR SELECT USING (true);
 
--- Function to check booking conflicts
+CREATE POLICY "Faculty can manage booking rules"
+  ON booking_rules FOR ALL USING (
+    (SELECT role FROM profiles WHERE id = auth.uid()) IN ('faculty', 'admin')
+  );
+
+-- ============================================================
+-- Functions
+-- ============================================================
+
+-- Check for overlapping bookings on the same machine/date
 CREATE OR REPLACE FUNCTION check_booking_conflict(
   p_machine_id UUID,
   p_date DATE,
@@ -107,21 +168,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Handle new user signup -> Create Profile automatically
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
+-- Auto-update updated_at timestamp on row change
+CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, role, email)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name', 'student', new.email);
-  RETURN new;
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_bookings_updated_at
+  BEFORE UPDATE ON bookings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER set_profiles_updated_at
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- Auth trigger: create profile on user signup
+-- Reads role and department from auth metadata when available
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role, department)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'student'),
+    COALESCE(NEW.raw_user_meta_data->>'department', NULL)
+  );
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger for new user
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- ============================================================
 -- Realtime
+-- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE bookings, machines;

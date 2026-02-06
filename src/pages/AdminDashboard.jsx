@@ -1,8 +1,8 @@
 import React from 'react';
-import DashboardLayout from '../components/layouts/DashboardLayout';
-import FacultyDashboard from '../components/dashboard/FacultyDashboard';
-import MachineManager from '../components/admin/MachineManager';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import FacultyDashboard from '@/components/dashboard/FacultyDashboard';
+import MachineManager from '@/components/admin/MachineManager';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const AdminDashboard = () => {
     return (

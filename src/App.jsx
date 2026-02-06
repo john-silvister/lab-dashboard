@@ -4,6 +4,7 @@ import Dashboard from '@/pages/Dashboard'
 import Login from '@/pages/LoginPage'
 import Signup from '@/pages/SignupPage'
 import MachinesPage from '@/pages/MachinesPage'
+import BookingsPage from '@/pages/BookingsPage'
 import AdminDashboard from '@/pages/AdminDashboard'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -36,6 +37,12 @@ function App() {
         <Route path="/machines" element={
           <ProtectedRoute>
             <MachinesPage />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/bookings" element={
+          <ProtectedRoute>
+            <BookingsPage />
           </ProtectedRoute>
         } />
 

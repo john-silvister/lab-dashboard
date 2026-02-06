@@ -1,39 +1,61 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
-import { UserPlus, Microscope } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { UserPlus, Microscope, Eye, EyeOff, GraduationCap, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+
+const DEPARTMENTS = ['CSE', 'ECE', 'Mechanical', 'Civil', 'Chemical', 'Physics', 'Mathematics'];
 
 const SignupPage = () => {
-    const { register, handleSubmit, formState: { errors } } = useForm();
+    const [fullName, setFullName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [department, setDepartment] = useState('');
+    const [role, setRole] = useState('student');
+    const [loading, setLoading] = useState(false);
     const { signUp } = useAuth();
     const navigate = useNavigate();
 
-    const onSubmit = async (data) => {
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (password.length < 6) {
+            toast.error('Password must be at least 6 characters');
+            return;
+        }
+        setLoading(true);
         try {
-            const { error } = await signUp(data.email, data.password, {
-                full_name: data.fullName,
-                role: 'student' // Default to student
+            const { error } = await signUp(email, password, {
+                full_name: fullName,
+                role,
+                department,
             });
             if (error) throw error;
             toast.success('Account created! Please verify your email.');
             navigate('/login');
         } catch (error) {
             toast.error(error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-            <div className="w-full max-w-md space-y-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="w-full max-w-md space-y-4"
+            >
                 <div className="text-center space-y-2 mb-8">
                     <div className="flex justify-center">
                         <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg">
-                            <Microscope className="h-8 w-8" />
+                            <Microscope className="h-7 w-7" />
                         </div>
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
@@ -42,34 +64,96 @@ const SignupPage = () => {
 
                 <Card className="border-border/50 shadow-xl backdrop-blur-xl bg-card/80">
                     <CardContent className="pt-6">
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Full Name</label>
                                 <Input
-                                    {...register('fullName', { required: 'Name is required' })}
                                     placeholder="John Doe"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    required
+                                    autoComplete="name"
                                 />
-                                {errors.fullName && <span className="text-xs text-red-500">{errors.fullName.message}</span>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Email</label>
                                 <Input
-                                    {...register('email', { required: 'Email is required' })}
                                     type="email"
-                                    placeholder="student@university.edu"
+                                    placeholder="your@university.edu"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    autoComplete="email"
                                 />
-                                {errors.email && <span className="text-xs text-red-500">{errors.email.message}</span>}
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Department</label>
+                                <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    value={department}
+                                    onChange={(e) => setDepartment(e.target.value)}
+                                    required
+                                >
+                                    <option value="">Select Department</option>
+                                    {DEPARTMENTS.map(d => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">I am a</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRole('student')}
+                                        className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                                            role === 'student'
+                                                ? 'border-primary bg-primary/5 text-primary'
+                                                : 'border-border hover:border-muted-foreground/50'
+                                        }`}
+                                    >
+                                        <GraduationCap className="h-6 w-6" />
+                                        <span className="text-sm font-medium">Student</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRole('faculty')}
+                                        className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
+                                            role === 'faculty'
+                                                ? 'border-primary bg-primary/5 text-primary'
+                                                : 'border-border hover:border-muted-foreground/50'
+                                        }`}
+                                    >
+                                        <BookOpen className="h-6 w-6" />
+                                        <span className="text-sm font-medium">Faculty</span>
+                                    </button>
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Password</label>
-                                <Input
-                                    {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Min 6 chars' } })}
-                                    type="password"
-                                />
-                                {errors.password && <span className="text-xs text-red-500">{errors.password.message}</span>}
+                                <div className="relative">
+                                    <Input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        minLength={6}
+                                        autoComplete="new-password"
+                                        className="pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
                             </div>
-                            <Button type="submit" className="w-full font-bold">
-                                <UserPlus className="mr-2 h-4 w-4" /> Create Account
+                            <Button type="submit" className="w-full font-bold" disabled={loading}>
+                                <UserPlus className="mr-2 h-4 w-4" /> {loading ? 'Creating...' : 'Create Account'}
                             </Button>
                         </form>
                     </CardContent>
@@ -79,7 +163,7 @@ const SignupPage = () => {
                         </p>
                     </CardFooter>
                 </Card>
-            </div>
+            </motion.div>
         </div>
     );
 };

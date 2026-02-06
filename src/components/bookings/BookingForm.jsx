@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { format, addDays } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, ChevronRight, Check } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card, CardContent } from '../ui/card';
-import { bookingService } from '../../services/bookingService';
-import { useAuth } from '../../hooks/useAuth';
+import { format } from 'date-fns';
+import { ChevronRight, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { bookingService } from '@/services/bookingService';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-// Note: Shadcn Calendar and Popover would be ideal here, but for now using native date input styled 
-// or custom calendar if we had time. Sticking to simple inputs for "MVP 2.0" speed unless I see Calendar component.
-// I haven't implemented Calendar ui component yet.
 
 const steps = [
     { id: 1, title: 'Time' },
@@ -22,48 +18,46 @@ const steps = [
 const BookingForm = ({ machine, onSuccess, onCancel }) => {
     const [step, setStep] = useState(1);
     const { user } = useAuth();
-    const { register, handleSubmit, watch, formState: { errors } } = useForm({
-        defaultValues: {
-            date: format(new Date(), 'yyyy-MM-dd'),
-            startTime: '09:00',
-            endTime: '10:00',
-            purpose: ''
-        }
+    const [formData, setFormData] = useState({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        startTime: '09:00',
+        endTime: '10:00',
+        purpose: ''
     });
 
-    const formData = watch();
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-    const onSubmit = async (data) => {
+    const handleSubmit = async (e) => {
+        e.preventDefault();
         try {
-            const startTime = new Date(`${data.date}T${data.startTime}`);
-            const endTime = new Date(`${data.date}T${data.endTime}`);
-
-            // Basic client validation
-            if (startTime >= endTime) {
+            if (formData.startTime >= formData.endTime) {
                 toast.error("End time must be after start time");
                 return;
             }
 
-            // Check conflict
-            const { data: conflict } = await bookingService.checkConflict(
+            const { data: isAvailable } = await bookingService.checkConflict(
                 machine.id,
-                data.date,
-                startTime.toISOString(),
-                endTime.toISOString()
+                formData.date,
+                formData.startTime + ':00',
+                formData.endTime + ':00'
             );
 
-            if (conflict) {
+            if (isAvailable === false) {
                 toast.error("Machine is already booked for this slot.");
                 return;
             }
 
             const { error } = await bookingService.createBooking({
-                equipment_id: machine.id,
+                machine_id: machine.id,
                 student_id: user.id,
-                start_time: startTime.toISOString(),
-                end_time: endTime.toISOString(),
-                purpose: data.purpose,
-                status: 'pending' // Default to pending
+                booking_date: formData.date,
+                start_time: formData.startTime + ':00',
+                end_time: formData.endTime + ':00',
+                purpose: formData.purpose,
+                status: 'pending'
             });
 
             if (error) throw error;
@@ -101,7 +95,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                 ))}
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="mt-4">
+            <form onSubmit={handleSubmit} className="mt-4">
                 <AnimatePresence mode='wait'>
                     {step === 1 && (
                         <motion.div
@@ -115,18 +109,21 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                                 <label className="text-sm font-medium">Date</label>
                                 <Input
                                     type="date"
+                                    name="date"
                                     min={format(new Date(), 'yyyy-MM-dd')}
-                                    {...register('date', { required: true })}
+                                    value={formData.date}
+                                    onChange={handleChange}
+                                    required
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Start Time</label>
-                                    <Input type="time" {...register('startTime', { required: true })} />
+                                    <Input type="time" name="startTime" value={formData.startTime} onChange={handleChange} required />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">End Time</label>
-                                    <Input type="time" {...register('endTime', { required: true })} />
+                                    <Input type="time" name="endTime" value={formData.endTime} onChange={handleChange} required />
                                 </div>
                             </div>
                         </motion.div>
@@ -144,7 +141,10 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                                 <label className="text-sm font-medium">Purpose of Use</label>
                                 <Input
                                     placeholder="E.g., Senior Project Experiment"
-                                    {...register('purpose', { required: 'Purpose is required' })}
+                                    name="purpose"
+                                    value={formData.purpose}
+                                    onChange={handleChange}
+                                    required
                                 />
                             </div>
                             <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">

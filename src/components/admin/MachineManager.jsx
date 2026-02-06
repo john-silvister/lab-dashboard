@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { machineService } from '../../services/machineService';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card } from '../ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { machineService } from '@/services/machineService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Edit, Trash, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 

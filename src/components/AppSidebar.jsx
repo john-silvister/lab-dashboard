@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { cn } from '../lib/utils';
+import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
     Microscope,
@@ -13,10 +13,10 @@ import {
     ChevronRight,
     UserCircle
 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 export function AppSidebar() {
     const [collapsed, setCollapsed] = useState(false);

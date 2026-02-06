@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import DashboardLayout from '../components/layouts/DashboardLayout';
-import MachineCard from '../components/machines/MachineCard';
-import { machineService } from '../services/machineService';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
+import MachineCard from '@/components/machines/MachineCard';
+import { machineService } from '@/services/machineService';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Search, Filter, X } from 'lucide-react';
-import BookingModal from '../components/bookings/BookingModal';
-import MachineDetailsModal from '../components/machines/MachineDetailsModal';
+import BookingModal from '@/components/bookings/BookingModal';
+import MachineDetailsModal from '@/components/machines/MachineDetailsModal';
 
 
 const MachinesPage = () => {
