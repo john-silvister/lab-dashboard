@@ -14,11 +14,11 @@ export const bookingService = {
             }
 
             const sanitizedData = {
-                machine_id: securityUtils.sanitizeInput(bookingData.machine_id),
-                student_id: securityUtils.sanitizeInput(bookingData.student_id),
-                booking_date: securityUtils.sanitizeInput(bookingData.booking_date),
-                start_time: securityUtils.sanitizeInput(bookingData.start_time),
-                end_time: securityUtils.sanitizeInput(bookingData.end_time),
+                machine_id: bookingData.machine_id,
+                student_id: bookingData.student_id,
+                booking_date: bookingData.booking_date,
+                start_time: bookingData.start_time,
+                end_time: bookingData.end_time,
                 purpose: securityUtils.sanitizeInput(bookingData.purpose)?.substring(0, 500), // Limit purpose length
             }
 

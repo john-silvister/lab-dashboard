@@ -127,6 +127,26 @@ export const securityUtils = {
         return true
     },
 
+    // Sanitize an object's string values
+    sanitizeObject: (obj) => {
+        if (!obj || typeof obj !== 'object') return {}
+        const sanitized = {}
+        for (const [key, value] of Object.entries(obj)) {
+            if (typeof value === 'string') {
+                sanitized[key] = securityUtils.sanitizeInput(value)
+            } else {
+                sanitized[key] = value
+            }
+        }
+        return sanitized
+    },
+
+    // Mask email for logging
+    maskEmail: (email) => {
+        if (typeof email !== 'string' || !email.includes('@')) return '***'
+        return email.replace(/(.{2})[^@]*@/, '$1***@')
+    },
+
     // Enhanced password validation
     validatePassword: (password) => {
         if (!password || typeof password !== 'string') return false
@@ -143,16 +163,8 @@ export const securityUtils = {
 }
 
 // Security: Clear sensitive data on page unload
-window.addEventListener('beforeunload', () => {
-    securityUtils.clearSensitiveData()
-})
-
-// Security: Prevent common attacks
-Object.freeze(Object.prototype)
-Object.freeze(Array.prototype)
-
-// Security: Disable eval and other dangerous functions in production
-if (import.meta.env.PROD) {
-    window.eval = () => { throw new Error('eval is disabled') }
-    window.Function = () => { throw new Error('Function constructor is disabled') }
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+        securityUtils.clearSensitiveData()
+    })
 }

@@ -35,12 +35,14 @@ export function useAuth() {
 
         // Get initial session
         supabase.auth.getSession().then(({ data: { session }, error }) => {
+            if (!mounted) return
+
             if (error) {
                 securityUtils.secureLog('error', 'Error getting session', error)
+                setLoading(false)
+                setAuthState('error')
                 return
             }
-
-            if (!mounted) return
 
             setUser(session?.user ?? null)
             setAuthState(session?.user ? 'authenticated' : 'unauthenticated')
@@ -70,10 +72,7 @@ export function useAuth() {
             setAuthState(session?.user ? 'authenticated' : 'unauthenticated')
 
             if (session?.user) {
-                // Only fetch profile if we don't already have it or if it's a different user
-                if (!profile || profile.id !== session.user.id) {
-                    await fetchProfile(session.user.id)
-                }
+                await fetchProfile(session.user.id)
             } else {
                 setProfile(null)
             }
@@ -85,7 +84,7 @@ export function useAuth() {
             mounted = false
             subscription.unsubscribe()
         }
-    }, [fetchProfile, profile])
+    }, [fetchProfile])
 
     // Security: Validate user permissions
     const hasPermission = useCallback((requiredRole) => {
