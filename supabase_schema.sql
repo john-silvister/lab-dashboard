@@ -1,5 +1,5 @@
 -- ============================================================
--- Lab Dashboard - Supabase Schema
+-- Lab Dashboard - Supabase Schema (Updated: 2026-02-07)
 -- ============================================================
 -- Tables: profiles, machines, bookings, booking_rules
 -- Features: RLS, conflict-check RPC, auto-profile trigger,
