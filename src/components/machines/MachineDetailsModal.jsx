@@ -46,6 +46,30 @@ const MachineDetailsModal = ({ machine, isOpen, onClose, onBook }) => {
                         </div>
                     </div>
 
+                    {/* M3: Display specifications if available */}
+                    {machine.specifications && Object.keys(machine.specifications).length > 0 && (
+                        <div>
+                            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">Specifications</h3>
+                            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                                {Object.entries(machine.specifications).map(([key, value]) => (
+                                    <div key={key} className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                                        <span className="font-medium">{String(value)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Training requirement notice */}
+                    {machine.requires_training && (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                                ⚠️ This machine requires training before use. Please contact the lab supervisor.
+                            </p>
+                        </div>
+                    )}
+
                     <div>
                         <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2">Description</h3>
                         <p className="text-foreground/80 leading-relaxed">

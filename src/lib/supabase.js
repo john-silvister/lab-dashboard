@@ -5,16 +5,20 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Security: Ensure required environment variables are present
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing required Supabase configuration. Please check environment variables.')
+    const errorMsg = 'CRITICAL: Missing required Supabase configuration. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
+    console.error(errorMsg)
+    // In production, show user-friendly error; in dev, throw to make it obvious
+    if (import.meta.env.PROD) {
+        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center;padding:20px;"><div><h1 style="color:#dc2626;">Configuration Error</h1><p>The application is not properly configured. Please contact the administrator.</p></div></div>`
+    }
+    throw new Error(errorMsg)
 }
 
 // Security: Validate URL format
-if (supabaseUrl) {
-    try {
-        new URL(supabaseUrl)
-    } catch {
-        console.error('Invalid Supabase URL format')
-    }
+try {
+    new URL(supabaseUrl)
+} catch {
+    throw new Error('Invalid Supabase URL format. Please check VITE_SUPABASE_URL.')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

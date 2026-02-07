@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { bookingService } from '@/services/bookingService';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Calendar, Clock, MapPin, FileText, X, RefreshCw, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, FileText, X, RefreshCw, ArrowRight, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow, isPast, isFuture } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -108,7 +108,8 @@ const BookingsPage = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all');
     const [selectedBooking, setSelectedBooking] = useState(null);
-    const [refreshTimeout, setRefreshTimeout] = useState(null);
+    const [realtimeError, setRealtimeError] = useState(false);
+    const refreshTimeoutRef = useRef(null); // I9: Use ref instead of state to avoid memory leak
 
     const fetchBookings = useCallback(async () => {
         setLoading(true);
@@ -133,23 +134,31 @@ const BookingsPage = () => {
                     filter: `student_id=eq.${user.id}`,
                 }, () => {
                     // Debounce real-time updates to prevent race conditions
-                    if (refreshTimeout) clearTimeout(refreshTimeout);
-                    const timeout = setTimeout(() => {
+                    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+                    refreshTimeoutRef.current = setTimeout(() => {
                         fetchBookings();
                     }, 1000); // 1 second debounce
-                    setRefreshTimeout(timeout);
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    // C6: Handle realtime subscription errors
+                    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        setRealtimeError(true);
+                        toast.error('Realtime connection lost. Please refresh for latest updates.');
+                    } else if (status === 'SUBSCRIBED') {
+                        setRealtimeError(false);
+                    }
+                });
             return () => {
                 supabase.removeChannel(channel);
-                if (refreshTimeout) clearTimeout(refreshTimeout);
+                if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
             };
         }
     }, [user, fetchBookings]);
 
+    // I4: Use cancelBooking instead of updateBookingStatus for proper ownership check
     const handleCancel = async (booking) => {
         if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-        const { error } = await bookingService.updateBookingStatus(booking.id, 'cancelled');
+        const { error } = await bookingService.cancelBooking(booking.id, user.id);
         if (error) {
             toast.error('Failed to cancel booking');
         } else {

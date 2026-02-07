@@ -154,6 +154,14 @@ export const bookingService = {
                 updated_at: new Date().toISOString()
             }
 
+            // Add faculty_id for audit trail when approving/rejecting
+            if (status === 'approved' || status === 'rejected') {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (user?.id) {
+                    updateData.faculty_id = user.id
+                }
+            }
+
             // Security: Sanitize comments if provided
             if (comments !== undefined) {
                 updateData.faculty_comments = securityUtils.sanitizeInput(comments)?.substring(0, 1000)

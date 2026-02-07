@@ -66,50 +66,50 @@ const MachineManager = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // Prevent double submission
         if (submitting) return;
-        
+
         setSubmitting(true);
-        
+
         try {
             let result;
-            
+
             if (editingMachine) {
                 // Optimistic update for editing
                 const optimisticMachine = { ...editingMachine, ...formData };
                 setMachines(prev => prev.map(m => m.id === editingMachine.id ? optimisticMachine : m));
-                
+
                 result = await machineService.updateMachine(editingMachine.id, formData);
                 if (result.error) throw result.error;
-                
+
                 toast.success('Machine updated successfully');
             } else {
                 result = await machineService.createMachine(formData);
                 if (result.error) throw result.error;
-                
+
                 // Add new machine to list optimistically
                 if (result.data) {
                     setMachines(prev => [result.data, ...prev]);
                 }
-                
+
                 toast.success('Machine created successfully');
             }
-            
+
             setIsModalOpen(false);
             resetForm();
-            
+
             // Refresh in background to ensure consistency
             setTimeout(() => fetchMachines(), 1000);
-            
+
         } catch (error) {
             console.error('Error saving machine:', error);
-            
+
             // Revert optimistic update on error
             if (editingMachine) {
                 fetchMachines();
             }
-            
+
             toast.error(error.message || 'Failed to save machine');
         } finally {
             setSubmitting(false);
@@ -120,22 +120,22 @@ const MachineManager = () => {
         if (!window.confirm(`Are you sure you want to delete "${machine.name}"? This action cannot be undone.`)) {
             return;
         }
-        
+
         // Optimistic update - remove from UI immediately
         const originalMachines = [...machines];
         setMachines(prev => prev.filter(m => m.id !== machine.id));
-        
+
         try {
             const { error } = await machineService.deleteMachine(machine.id);
             if (error) throw error;
-            
+
             toast.success('Machine deleted successfully');
         } catch (error) {
             console.error('Error deleting machine:', error);
-            
+
             // Revert optimistic update on error
             setMachines(originalMachines);
-            
+
             toast.error(error.message || 'Failed to delete machine');
         }
     };
@@ -150,41 +150,57 @@ const MachineManager = () => {
             </div>
 
             <div className="grid gap-4">
-                {machines.map(machine => (
-                    <Card key={machine.id} className="flex flex-row items-center justify-between p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded bg-muted flex items-center justify-center overflow-hidden">
-                                {machine.image_url ? (
-                                    <img src={machine.image_url} alt={machine.name} className="h-full w-full object-cover" />
-                                ) : (
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                )}
+                {loading ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />)}
+                    </div>
+                ) : machines.length === 0 ? (
+                    // I10: Empty state
+                    <div className="text-center py-12 text-muted-foreground">
+                        <p>No machines found. Add your first machine to get started!</p>
+                    </div>
+                ) : (
+                    machines.map(machine => (
+                        <Card key={machine.id} className="flex flex-row items-center justify-between p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded bg-muted flex items-center justify-center overflow-hidden">
+                                    {machine.image_url ? (
+                                        <img src={machine.image_url} alt={machine.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-semibold">{machine.name}</h3>
+                                        {!machine.is_active && (
+                                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactive</span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">{machine.department} • {machine.location}</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-semibold">{machine.name}</h3>
-                                <p className="text-sm text-muted-foreground">{machine.department} • {machine.location}</p>
+                            <div className="flex gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenModal(machine)} aria-label={`Edit ${machine.name}`}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(machine)} aria-label={`Delete ${machine.name}`}>
+                                    <Trash className="h-4 w-4" />
+                                </Button>
                             </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenModal(machine)}>
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(machine)}>
-                                <Trash className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </Card>
-                ))}
+                        </Card>
+                    ))
+                )}
             </div>
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{editingMachine ? 'Edit Machine' : 'Add New Machine'}</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Name</label>
+                            <label className="text-sm font-medium">Name *</label>
                             <Input
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -194,10 +210,20 @@ const MachineManager = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Department</label>
-                                <Input
+                                <select
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     value={formData.department}
                                     onChange={e => setFormData({ ...formData, department: e.target.value })}
-                                />
+                                >
+                                    <option value="">Select Department</option>
+                                    <option value="CSE">CSE</option>
+                                    <option value="ECE">ECE</option>
+                                    <option value="EEE">EEE</option>
+                                    <option value="Mechanical">Mechanical</option>
+                                    <option value="Civil">Civil</option>
+                                    <option value="Chemical">Chemical</option>
+                                    <option value="Biotechnology">Biotechnology</option>
+                                </select>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Location</label>
@@ -207,6 +233,17 @@ const MachineManager = () => {
                                 />
                             </div>
                         </div>
+                        {/* I2: Added image_url field */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Image URL</label>
+                            <Input
+                                type="url"
+                                placeholder="https://example.com/image.jpg"
+                                value={formData.image_url}
+                                onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                            />
+                            <p className="text-xs text-muted-foreground">Enter a URL to an image of the machine</p>
+                        </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Description</label>
                             <textarea
@@ -214,6 +251,19 @@ const MachineManager = () => {
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                             />
+                        </div>
+                        {/* I2: Added is_active toggle */}
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                id="is_active"
+                                checked={formData.is_active}
+                                onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <label htmlFor="is_active" className="text-sm font-medium">
+                                Machine is active and available for booking
+                            </label>
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={submitting}>Cancel</Button>
@@ -229,3 +279,4 @@ const MachineManager = () => {
 };
 
 export default MachineManager;
+

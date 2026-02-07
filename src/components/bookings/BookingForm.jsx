@@ -33,19 +33,54 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // Prevent double submission
         if (loading) return;
-        
+
         try {
+            // Validate start time before end time
             if (formData.startTime >= formData.endTime) {
                 toast.error("End time must be after start time");
                 return;
             }
 
-            // Remove client-side conflict check to prevent race conditions
-            // Rely on database constraints and proper error handling instead
-            
+            // C8: Validate that booking is not in the past for same-day bookings
+            const today = format(new Date(), 'yyyy-MM-dd');
+            const now = new Date();
+            if (formData.date === today) {
+                const [startHour, startMin] = formData.startTime.split(':').map(Number);
+                const startDateTime = new Date();
+                startDateTime.setHours(startHour, startMin, 0, 0);
+
+                if (startDateTime <= now) {
+                    toast.error("Cannot book a time slot that has already passed");
+                    return;
+                }
+            }
+
+            // Validate date is not in the past
+            if (formData.date < today) {
+                toast.error("Cannot book for a past date");
+                return;
+            }
+
+            // Validate not too far in advance (30 days)
+            const maxAdvanceDate = new Date();
+            maxAdvanceDate.setDate(maxAdvanceDate.getDate() + 30);
+            if (new Date(formData.date) > maxAdvanceDate) {
+                toast.error("Cannot book more than 30 days in advance");
+                return;
+            }
+
+            // Validate maximum duration (8 hours)
+            const [startH, startM] = formData.startTime.split(':').map(Number);
+            const [endH, endM] = formData.endTime.split(':').map(Number);
+            const durationHours = (endH * 60 + endM - startH * 60 - startM) / 60;
+            if (durationHours > 8) {
+                toast.error("Maximum booking duration is 8 hours");
+                return;
+            }
+
             const { error } = await bookingService.createBooking({
                 machine_id: machine.id,
                 student_id: user.id,

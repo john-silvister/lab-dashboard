@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -9,20 +9,88 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
 
+// Rate limiting constants
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_KEY = 'lab_dashboard_login_attempts';
+
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [loginAttempts, setLoginAttempts] = useState(0);
+    const [isLocked, setIsLocked] = useState(false);
+    const [lockoutRemaining, setLockoutRemaining] = useState(0);
     const { signIn } = useAuth();
     const navigate = useNavigate();
+
+    // Check rate limit status on mount and periodically
+    useEffect(() => {
+        const checkRateLimit = () => {
+            try {
+                const stored = localStorage.getItem(RATE_LIMIT_KEY);
+                if (stored) {
+                    const { count, lockedUntil } = JSON.parse(stored);
+                    const now = Date.now();
+                    if (lockedUntil && now < lockedUntil) {
+                        setIsLocked(true);
+                        setLockoutRemaining(Math.ceil((lockedUntil - now) / 1000));
+                    } else if (lockedUntil && now >= lockedUntil) {
+                        // Lockout expired, reset
+                        localStorage.removeItem(RATE_LIMIT_KEY);
+                        setIsLocked(false);
+                        setLockoutRemaining(0);
+                    }
+                }
+            } catch {
+                // If localStorage fails, continue without rate limiting
+            }
+        };
+
+        checkRateLimit();
+        const interval = setInterval(checkRateLimit, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const incrementAttempts = () => {
+        try {
+            const stored = localStorage.getItem(RATE_LIMIT_KEY);
+            let data = stored ? JSON.parse(stored) : { count: 0, lockedUntil: null };
+            data.count += 1;
+
+            if (data.count >= MAX_LOGIN_ATTEMPTS) {
+                data.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+                setIsLocked(true);
+                setLockoutRemaining(LOCKOUT_DURATION_MS / 1000);
+            }
+
+            localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(data));
+        } catch {
+            // If localStorage fails, continue
+        }
+    };
+
+    const clearAttempts = () => {
+        try {
+            localStorage.removeItem(RATE_LIMIT_KEY);
+            setIsLocked(false);
+            setLockoutRemaining(0);
+        } catch {
+            // If localStorage fails, continue
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Prevent double submission
         if (loading) return;
+
+        // Check if locked out
+        if (isLocked) {
+            toast.error(`Too many attempts. Please wait ${lockoutRemaining} seconds.`);
+            return;
+        }
 
         try {
             // Security: Sanitize inputs
@@ -34,26 +102,20 @@ const LoginPage = () => {
                 return;
             }
 
-            // Security: Basic rate limiting (client-side)
-            if (loginAttempts >= 5) {
-                toast.error('Too many login attempts. Please wait a few minutes before trying again.');
-                return;
-            }
-
             setLoading(true);
 
             const { error } = await signIn(sanitizedEmail, password);
             if (error) {
-                setLoginAttempts(prev => prev + 1);
+                incrementAttempts();
                 throw error;
             }
 
             // Reset login attempts on successful login
-            setLoginAttempts(0);
+            clearAttempts();
             toast.success('Successfully logged in');
             navigate('/');
         } catch (error) {
-            securityUtils.secureLog('warn', 'Login failed', { email: securityUtils.maskEmail(email), attempts: loginAttempts + 1 });
+            securityUtils.secureLog('warn', 'Login failed', { email: securityUtils.maskEmail(email) });
             toast.error(error.message || 'Login failed');
         } finally {
             setLoading(false);

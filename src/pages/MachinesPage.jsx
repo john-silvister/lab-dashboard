@@ -83,12 +83,16 @@ const MachinesPage = () => {
                                 <option value="">All Departments</option>
                                 <option value="CSE">CSE</option>
                                 <option value="ECE">ECE</option>
-                                <option value="Mech">Mechanical</option>
+                                <option value="EEE">EEE</option>
+                                <option value="Mechanical">Mechanical</option>
+                                <option value="Civil">Civil</option>
+                                <option value="Chemical">Chemical</option>
+                                <option value="Biotechnology">Biotechnology</option>
                             </select>
                         </div>
                         {/* Add more filters here */}
-                        <Button variant="ghost" onClick={() => setFilters({ department: '', location: '' })}>
-                            <X className="h-4 w-4 mr-2" /> Reset
+                        <Button variant="ghost" onClick={() => setFilters({ department: '', location: '' })} aria-label="Reset filters">
+                            <X className="h-4 w-4 mr-2" />Reset
                         </Button>
                     </div>
                 )}

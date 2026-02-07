@@ -15,6 +15,8 @@ import { format, formatDistanceToNow } from 'date-fns';
 const FacultyDashboard = () => {
     const [pendingBookings, setPendingBookings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(null); // Track which booking is being processed
+    const [realtimeError, setRealtimeError] = useState(false);
     const [rejectModal, setRejectModal] = useState({ open: false, booking: null });
     const [rejectReason, setRejectReason] = useState('');
     const [detailBooking, setDetailBooking] = useState(null);
@@ -31,12 +33,24 @@ const FacultyDashboard = () => {
         const channel = supabase
             .channel('faculty-bookings')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchPending())
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    setRealtimeError(true);
+                    toast.error('Realtime connection lost. Please refresh for latest updates.');
+                } else if (status === 'SUBSCRIBED') {
+                    setRealtimeError(false);
+                }
+            });
         return () => supabase.removeChannel(channel);
     }, [fetchPending]);
 
     const handleApprove = async (bookingId) => {
+        // I7: Add confirmation for approve action
+        if (!window.confirm('Are you sure you want to approve this booking?')) return;
+
+        setActionLoading(bookingId);
         const { error } = await bookingService.updateBookingStatus(bookingId, 'approved');
+        setActionLoading(null);
         if (error) {
             toast.error('Failed to approve booking');
         } else {
