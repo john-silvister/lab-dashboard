@@ -21,7 +21,7 @@ A full-stack lab equipment booking system for university environments. Students 
 - **My Bookings** -- Tab-filtered view (All / Pending / Approved / Rejected / Past) with cancel and detail modals
 - **Admin panel** -- Machine CRUD management and booking oversight
 - **Conflict detection** -- Server-side RPC checks for overlapping bookings before insert
-- **Responsive design** -- Sidebar layout on desktop, slide-out nav on mobile
+- **Responsive design** -- Fully mobile-optimized with adaptive layouts for profiles, bookings, and admin tools
 - **Animated UI** -- Page transitions and micro-interactions powered by Framer Motion
 - **Toast notifications** -- Instant feedback for all user actions via Sonner
 

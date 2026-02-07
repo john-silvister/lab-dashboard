@@ -52,7 +52,7 @@ const StudentDashboard = () => {
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between"
+                className="flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Welcome back, {profile?.full_name?.split(' ')[0] || 'Student'}</h2>

@@ -81,7 +81,7 @@ const DashboardLayout = ({ children, role = 'student' }) => {
                     <span className="font-semibold">LabBook</span>
                 </header>
 
-                <main className="flex-1 p-6 md:p-8 pt-6">
+                <main className="flex-1 p-4 md:p-8 pt-6">
                     <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
                         {children}
                     </div>

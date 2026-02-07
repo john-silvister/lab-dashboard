@@ -13,10 +13,12 @@ const AdminDashboard = () => {
                 </div>
 
                 <Tabs defaultValue="overview" className="space-y-4">
-                    <TabsList>
-                        <TabsTrigger value="overview">Overview & Approvals</TabsTrigger>
-                        <TabsTrigger value="machines">Manage Machines</TabsTrigger>
-                    </TabsList>
+                    <div className="w-full overflow-x-auto pb-2">
+                        <TabsList>
+                            <TabsTrigger value="overview">Overview & Approvals</TabsTrigger>
+                            <TabsTrigger value="machines">Manage Machines</TabsTrigger>
+                        </TabsList>
+                    </div>
                     <TabsContent value="overview" className="space-y-4">
                         <FacultyDashboard />
                     </TabsContent>

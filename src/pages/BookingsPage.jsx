@@ -192,11 +192,11 @@ const BookingsPage = () => {
                         <h1 className="text-3xl font-bold tracking-tight">My Bookings</h1>
                         <p className="text-muted-foreground">Track and manage your lab equipment bookings.</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={fetchBookings}>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                        <Button variant="outline" size="sm" onClick={fetchBookings} className="w-full sm:w-auto">
                             <RefreshCw className="h-4 w-4 mr-2" /> Refresh
                         </Button>
-                        <Button size="sm" asChild>
+                        <Button size="sm" asChild className="w-full sm:w-auto">
                             <Link to="/machines">
                                 New Booking <ArrowRight className="h-4 w-4 ml-2" />
                             </Link>
@@ -204,14 +204,16 @@ const BookingsPage = () => {
                     </div>
                 </div>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList>
-                        <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
-                        <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
-                        <TabsTrigger value="approved">Approved ({tabCounts.approved})</TabsTrigger>
-                        <TabsTrigger value="rejected">Rejected ({tabCounts.rejected})</TabsTrigger>
-                        <TabsTrigger value="past">Past ({tabCounts.past})</TabsTrigger>
-                    </TabsList>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <div className="w-full overflow-x-auto pb-2">
+                        <TabsList className="w-full justify-start">
+                            <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
+                            <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
+                            <TabsTrigger value="approved">Approved ({tabCounts.approved})</TabsTrigger>
+                            <TabsTrigger value="rejected">Rejected ({tabCounts.rejected})</TabsTrigger>
+                            <TabsTrigger value="past">Past ({tabCounts.past})</TabsTrigger>
+                        </TabsList>
+                    </div>
 
                     <TabsContent value={activeTab} className="mt-4">
                         {loading ? (

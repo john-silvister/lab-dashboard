@@ -1,0 +1,87 @@
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserCircle, Mail, Phone, Building, Briefcase, GraduationCap } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+
+const ProfileModal = ({ isOpen, onClose }) => {
+    const { profile } = useAuth();
+
+    // We'll just display info for now, editing can be a future enhancement if backend supports it
+    // or we can add simple local state management if needed.
+    // For this task, ensuring it looks good on mobile is key.
+
+    if (!profile) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Profile Details</DialogTitle>
+                </DialogHeader>
+
+                <div className="flex flex-col items-center space-y-4 py-4">
+                    <Avatar className="h-24 w-24 border-4 border-muted">
+                        <AvatarImage src={`https://avatar.vercel.sh/${profile.email}`} />
+                        <AvatarFallback><UserCircle className="h-20 w-20 text-muted-foreground" /></AvatarFallback>
+                    </Avatar>
+
+                    <div className="text-center">
+                        <h3 className="text-xl font-bold">{profile.full_name}</h3>
+                        <p className="text-sm text-muted-foreground capitalize">{profile.role}</p>
+                    </div>
+                </div>
+
+                <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="email" className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" /> Email
+                        </Label>
+                        <Input id="email" value={profile.email} readOnly className="bg-muted" />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="department" className="flex items-center gap-2">
+                            <Building className="h-4 w-4" /> Department
+                        </Label>
+                        <Input id="department" value={profile.department || 'N/A'} readOnly className="bg-muted" />
+                    </div>
+
+                    {profile.role === 'student' && (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="register" className="flex items-center gap-2">
+                                    <Briefcase className="h-4 w-4" /> Register Number
+                                </Label>
+                                <Input id="register" value={profile.register_number || 'N/A'} readOnly className="bg-muted" />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="specialization" className="flex items-center gap-2">
+                                    <GraduationCap className="h-4 w-4" /> Specialization
+                                </Label>
+                                <Input id="specialization" value={profile.specialization || 'N/A'} readOnly className="bg-muted" />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="phone" className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4" /> Phone
+                                </Label>
+                                <Input id="phone" value={profile.phone || 'N/A'} readOnly className="bg-muted" />
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button onClick={onClose}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+export default ProfileModal;

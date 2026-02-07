@@ -142,7 +142,7 @@ const LoginPage = () => {
                             <Microscope className="h-7 w-7" />
                         </div>
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Welcome to Additive Manufacturing Lab</h1>
                     <p className="text-sm text-muted-foreground">Enter your credentials to access your lab dashboard</p>
                 </div>
 

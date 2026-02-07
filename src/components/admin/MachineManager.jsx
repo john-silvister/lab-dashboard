@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { machineService } from '@/services/machineService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MachineManager = () => {
@@ -28,12 +28,12 @@ const MachineManager = () => {
         fetchMachines();
     }, []);
 
-    const fetchMachines = async () => {
+    const fetchMachines = useCallback(async () => {
         setLoading(true);
         const { data } = await machineService.getMachines({ isAdmin: true });
         if (data) setMachines(data);
         setLoading(false);
-    };
+    }, []);
 
     const resetForm = () => {
         setFormData({
@@ -161,26 +161,29 @@ const MachineManager = () => {
                     </div>
                 ) : (
                     machines.map(machine => (
-                        <Card key={machine.id} className="flex flex-row items-center justify-between p-4 hover:shadow-md transition-shadow">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded bg-muted flex items-center justify-center overflow-hidden">
+                        <div key={machine.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-card gap-4">
+                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                <div className="h-16 w-16 rounded-md bg-muted overflow-hidden shrink-0">
                                     {machine.image_url ? (
                                         <img src={machine.image_url} alt={machine.name} className="h-full w-full object-cover" />
                                     ) : (
-                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                        <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                                            <Microscope className="h-8 w-8 opacity-20" />
+                                        </div>
                                     )}
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold">{machine.name}</h3>
-                                        {!machine.is_active && (
-                                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactive</span>
-                                        )}
+                                    <h3 className="font-semibold">{machine.name}</h3>
+                                    <p className="text-sm text-muted-foreground">{machine.location}</p>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        <Badge variant={machine.is_active ? 'success' : 'destructive'}>
+                                            {machine.is_active ? 'Active' : 'Inactive'}
+                                        </Badge>
+                                        <Badge variant="outline">{machine.department || 'General'}</Badge>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">{machine.department} • {machine.location}</p>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenModal(machine)} aria-label={`Edit ${machine.name}`}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
@@ -188,7 +191,7 @@ const MachineManager = () => {
                                     <Trash className="h-4 w-4" />
                                 </Button>
                             </div>
-                        </Card>
+                        </div>
                     ))
                 )}
             </div>

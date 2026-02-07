@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Check, X, Clock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -142,30 +142,37 @@ const FacultyDashboard = () => {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.05 }}
-                                        className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/30 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <Avatar className="h-9 w-9">
-                                                <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
-                                            </Avatar>
-                                            <div className="space-y-1">
-                                                <p className="text-sm font-medium leading-none">{student.full_name || 'Unknown Student'}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    wants to use <span className="font-medium text-foreground">{machine.name || 'a machine'}</span>
-                                                </p>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    <Badge variant="outline" className="text-[10px] h-5">
-                                                        {format(new Date(booking.booking_date), 'MMM d')} {booking.start_time?.slice(0, 5)} - {booking.end_time?.slice(0, 5)}
+                                        className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors gap-4">
+                                        <div className="space-y-1 w-full md:w-auto">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h4 className="font-semibold">{machine.name || 'Unknown Machine'}</h4>
+                                                {machine.location && (
+                                                    <Badge variant="outline" className="text-muted-foreground">
+                                                        {machine.location}
                                                     </Badge>
-                                                    <span>--</span>
-                                                    <span>{booking.purpose || 'No purpose given'}</span>
-                                                </div>
-                                                <p className="text-[10px] text-muted-foreground">
-                                                    {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
-                                                </p>
+                                                )}
                                             </div>
+                                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                                <span className="flex items-center gap-1">
+                                                    <User className="h-3.5 w-3.5" />
+                                                    {student.full_name || 'Unknown Student'} ({student.role || 'Student'})
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <Calendar className="h-3.5 w-3.5" />
+                                                    {format(new Date(booking.booking_date), 'MMM d, yyyy')}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    {booking.start_time?.slice(0, 5)} - {booking.end_time?.slice(0, 5)}
+                                                </span>
+                                            </div>
+                                            {booking.purpose && (
+                                                <p className="text-sm text-muted-foreground mt-1">
+                                                    <span className="font-medium">Purpose:</span> {booking.purpose}
+                                                </p>
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
                                             <Button size="sm" variant="outline" onClick={() => setDetailBooking(booking)} className="hidden md:inline-flex">
                                                 Details
                                             </Button>

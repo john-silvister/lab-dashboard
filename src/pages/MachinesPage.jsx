@@ -55,17 +55,17 @@ const MachinesPage = () => {
                         <h1 className="text-3xl font-bold tracking-tight">Machines & Equipment</h1>
                         <p className="text-muted-foreground">Browse available lab resources for your projects.</p>
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                         <div className="relative flex-1 md:w-64">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Search..."
-                                className="pl-9"
+                                className="pl-9 w-full"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
-                        <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+                        <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="w-full sm:w-auto">
                             <Filter className="h-4 w-4 mr-2" /> Filters
                         </Button>
                     </div>
