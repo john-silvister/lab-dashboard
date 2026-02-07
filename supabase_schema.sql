@@ -6,6 +6,9 @@
 --           realtime publication, performance indexes
 -- ============================================================
 
+-- 0. RESET: Drop existing tables to allow clean overwrite
+DROP TABLE IF EXISTS audit_log, booking_rules, bookings, machines, profiles CASCADE;
+
 -- 1. Profiles table (extends auth.users)
 CREATE TABLE profiles (
   id UUID REFERENCES auth.users PRIMARY KEY,
