@@ -17,11 +17,15 @@ function ProtectedRoute({ children, role }) {
 
   // Wait for profile to load before checking role-based access
   if (role) {
-    if (profileLoading || (!profile && !profileLoading)) {
+    if (profileLoading) {
       return <div className="h-screen w-screen flex items-center justify-center p-4">Loading...</div>
     }
+    // Profile fetch completed but returned null (error/missing row) — deny access
+    if (!profile) {
+      return <Navigate to="/" replace />
+    }
     const allowedRoles = Array.isArray(role) ? role : [role]
-    if (!allowedRoles.includes(profile?.role)) {
+    if (!allowedRoles.includes(profile.role)) {
       return <Navigate to="/" replace />
     }
   }
