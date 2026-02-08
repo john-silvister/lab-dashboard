@@ -189,7 +189,7 @@ const SignupPage = () => {
                         </div>
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
-                    <p className="text-sm text-muted-foreground">Get started with booking lab equipment</p>
+                    <p className="text-sm text-muted-foreground">Get started with the Additive Manufacturing Lab</p>
                 </div>
 
                 <Card className="border-border/50 shadow-xl backdrop-blur-xl bg-card/80">

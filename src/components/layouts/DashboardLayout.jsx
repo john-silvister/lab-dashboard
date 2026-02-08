@@ -21,7 +21,7 @@ const MobileNav = ({ navItems, currentPath, onSignOut }) => {
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-2 font-bold text-xl text-primary">
                                 <Microscope className="h-6 w-6" />
-                                <span>LabBook</span>
+                                <span>AML Lab</span>
                             </div>
                             <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
                                 <X className="h-5 w-5" />
@@ -79,7 +79,7 @@ const DashboardLayout = ({ children }) => {
             <div className="flex-1 flex flex-col">
                 <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur md:hidden">
                     <MobileNav navItems={navItems} currentPath={location.pathname} onSignOut={signOut} />
-                    <span className="font-semibold">LabBook</span>
+                    <span className="font-semibold">AML Lab</span>
                 </header>
 
                 <main className="flex-1 p-4 md:p-8 pt-6">

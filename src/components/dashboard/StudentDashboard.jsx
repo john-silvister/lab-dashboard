@@ -56,8 +56,8 @@ const StudentDashboard = () => {
                 className="flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Welcome back, {profile?.full_name?.split(' ')[0] || 'Student'}</h2>
-                    <p className="text-muted-foreground">Here's what's happening in your lab today.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">Welcome to Additive Manufacturing Lab</h2>
+                    <p className="text-muted-foreground">Here's what's happening in your lab today, {profile?.full_name?.split(' ')[0] || 'Student'}.</p>
                 </div>
                 <div className="flex gap-2">
                     <Button asChild>

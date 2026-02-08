@@ -56,7 +56,7 @@ export function AppSidebar() {
                                 className="flex items-center gap-2 font-bold text-xl text-primary"
                             >
                                 <Microscope className="h-6 w-6" />
-                                <span>LabBook</span>
+                                <span>AML Lab</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
