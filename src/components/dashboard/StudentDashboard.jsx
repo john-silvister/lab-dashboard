@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Clock, CheckCircle2, AlertCircle, Plus, Microscope } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { bookingService } from '@/services/bookingService';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { format, isFuture } from 'date-fns';
 
@@ -67,8 +68,8 @@ const StudentDashboard = () => {
                 </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <BentoGridItem className="col-span-1 md:col-span-2 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl border p-6 flex flex-col justify-between" delay={0.1}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <BentoGridItem className="col-span-1 sm:col-span-2 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl border p-6 flex flex-col justify-between" delay={0.1}>
                     <div className="space-y-1">
                         <span className="text-sm font-medium text-muted-foreground">Total Bookings</span>
                         <div className="text-4xl font-bold tracking-tighter">{stats.totalBookings}</div>
@@ -81,7 +82,7 @@ const StudentDashboard = () => {
                     </div>
                 </BentoGridItem>
 
-                <BentoGridItem className="md:col-span-1 bg-card rounded-xl border p-6 flex flex-col justify-between" delay={0.2}>
+                <BentoGridItem className="sm:col-span-1 bg-card rounded-xl border p-6 flex flex-col justify-between" delay={0.2}>
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Active</span>
                         <Clock className="h-4 w-4 text-blue-500" />
@@ -92,7 +93,7 @@ const StudentDashboard = () => {
                     </div>
                 </BentoGridItem>
 
-                <BentoGridItem className="md:col-span-1 bg-card rounded-xl border p-6 flex flex-col justify-between" delay={0.3}>
+                <BentoGridItem className="sm:col-span-1 bg-card rounded-xl border p-6 flex flex-col justify-between" delay={0.3}>
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Pending</span>
                         <AlertCircle className="h-4 w-4 text-orange-500" />
@@ -103,7 +104,7 @@ const StudentDashboard = () => {
                     </div>
                 </BentoGridItem>
 
-                <BentoGridItem className="md:col-span-3 rounded-xl border bg-card overflow-hidden" delay={0.4}>
+                <BentoGridItem className="sm:col-span-2 md:col-span-3 rounded-xl border bg-card overflow-hidden" delay={0.4}>
                     <div className="p-6 border-b flex items-center justify-between">
                         <h3 className="font-semibold">Upcoming Bookings</h3>
                         <Button variant="ghost" size="sm" className="text-xs" asChild>
@@ -142,7 +143,7 @@ const StudentDashboard = () => {
                     </div>
                 </BentoGridItem>
 
-                <BentoGridItem className="md:col-span-1 rounded-xl border bg-card p-6 space-y-4" delay={0.5}>
+                <BentoGridItem className="sm:col-span-2 md:col-span-1 rounded-xl border bg-card p-6 space-y-4" delay={0.5}>
                     <h3 className="font-semibold">Quick Actions</h3>
                     <div className="grid gap-2">
                         <Button variant="outline" className="w-full justify-start h-auto py-3" asChild>

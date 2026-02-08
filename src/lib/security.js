@@ -35,7 +35,7 @@ export const securityUtils = {
     secureLog: (level, message, data = null) => {
         if (import.meta.env.DEV) {
             const maskedData = data ? securityUtils.maskSensitiveData(data) : null
-            console[level](`[SECURE] ${message}`, maskedData || '')
+            console[level](`[SECURE] ${message}`, maskedData || '') // eslint-disable-line no-console
         }
     },
 
@@ -156,7 +156,7 @@ export const securityUtils = {
         const hasUpperCase = /[A-Z]/.test(password)
         const hasLowerCase = /[a-z]/.test(password)
         const hasNumbers = /\d/.test(password)
-        const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?/]/.test(password)
+        const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?/]/.test(password)
 
         return hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar
     }

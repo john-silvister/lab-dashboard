@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { LogIn, Microscope, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
 
@@ -30,7 +31,7 @@ const LoginPage = () => {
             try {
                 const stored = localStorage.getItem(RATE_LIMIT_KEY);
                 if (stored) {
-                    const { count, lockedUntil } = JSON.parse(stored);
+                    const { lockedUntil } = JSON.parse(stored);
                     const now = Date.now();
                     if (lockedUntil && now < lockedUntil) {
                         setIsLocked(true);
@@ -93,18 +94,18 @@ const LoginPage = () => {
         }
 
         try {
-            // Security: Sanitize inputs
-            const sanitizedEmail = securityUtils.sanitizeInput(email).toLowerCase().trim();
+            // Security: Validate email
+            const trimmedEmail = email.toLowerCase().trim();
 
             // Security: Validate email format
-            if (!securityUtils.validateEmail(sanitizedEmail)) {
+            if (!securityUtils.validateEmail(trimmedEmail)) {
                 toast.error('Please enter a valid email address');
                 return;
             }
 
             setLoading(true);
 
-            const { error } = await signIn(sanitizedEmail, password);
+            const { error } = await signIn(trimmedEmail, password);
             if (error) {
                 incrementAttempts();
                 throw error;
@@ -124,8 +125,7 @@ const LoginPage = () => {
 
     // Security: Sanitize input handlers
     const handleEmailChange = (e) => {
-        const sanitized = securityUtils.sanitizeInput(e.target.value);
-        setEmail(sanitized);
+        setEmail(e.target.value);
     };
 
     return (
@@ -176,7 +176,7 @@ const LoginPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                         tabIndex={-1}
                                     >
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

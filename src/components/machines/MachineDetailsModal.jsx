@@ -78,11 +78,12 @@ const MachineDetailsModal = ({ machine, isOpen, onClose, onBook }) => {
                     </div>
                 </div>
 
-                <DialogFooter className="mt-4">
-                    <Button variant="ghost" onClick={onClose}>Close</Button>
+                <DialogFooter className="mt-4 flex-col sm:flex-row gap-2">
+                    <Button variant="ghost" onClick={onClose} className="w-full sm:w-auto">Close</Button>
                     <Button
                         onClick={() => { onClose(); onBook(machine); }}
                         disabled={!machine.is_active}
+                        className="w-full sm:w-auto"
                     >
                         Book This Machine
                     </Button>

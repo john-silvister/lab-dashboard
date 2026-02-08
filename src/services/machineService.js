@@ -12,11 +12,11 @@ export const machineService = {
             const sanitizedFilters = {}
 
             if (filters.department) {
-                sanitizedFilters.department = securityUtils.sanitizeInput(filters.department)?.substring(0, 100)
+                sanitizedFilters.department = typeof filters.department === 'string' ? filters.department.trim().substring(0, 100) : ''
             }
 
             if (filters.location) {
-                sanitizedFilters.location = securityUtils.sanitizeInput(filters.location)?.substring(0, 100)
+                sanitizedFilters.location = typeof filters.location === 'string' ? filters.location.trim().substring(0, 100) : ''
             }
 
             if (typeof filters.isAdmin === 'boolean') {
@@ -95,12 +95,12 @@ export const machineService = {
             }
 
             const sanitizedData = {
-                name: securityUtils.sanitizeInput(machineData.name)?.substring(0, 200),
-                description: securityUtils.sanitizeInput(machineData.description)?.substring(0, 1000),
-                department: securityUtils.sanitizeInput(machineData.department)?.substring(0, 100),
-                location: securityUtils.sanitizeInput(machineData.location)?.substring(0, 200),
+                name: typeof machineData.name === 'string' ? machineData.name.trim().substring(0, 200) : '',
+                description: typeof machineData.description === 'string' ? machineData.description.trim().substring(0, 1000) : '',
+                department: typeof machineData.department === 'string' ? machineData.department.trim().substring(0, 100) : '',
+                location: typeof machineData.location === 'string' ? machineData.location.trim().substring(0, 200) : '',
                 specifications: machineData.specifications, // JSON will be validated at DB level
-                image_url: securityUtils.sanitizeInput(machineData.image_url)?.substring(0, 500),
+                image_url: typeof machineData.image_url === 'string' ? machineData.image_url.trim().substring(0, 500) : '',
                 is_active: typeof machineData.is_active === 'boolean' ? machineData.is_active : true,
                 requires_training: typeof machineData.requires_training === 'boolean' ? machineData.requires_training : false
             }
@@ -112,7 +112,7 @@ export const machineService = {
 
             // Security: Validate image URL format if provided
             if (sanitizedData.image_url && !securityUtils.validateUrl(sanitizedData.image_url)) {
-                return { data: null, error: { message: 'Invalid image URL format' } }
+                sanitizedData.image_url = ''
             }
 
             // Security: Validate specifications JSON
@@ -162,19 +162,19 @@ export const machineService = {
             const sanitizedUpdates = {}
 
             if (updates.name !== undefined) {
-                sanitizedUpdates.name = securityUtils.sanitizeInput(updates.name)?.substring(0, 200)
+                sanitizedUpdates.name = typeof updates.name === 'string' ? updates.name.trim().substring(0, 200) : ''
             }
 
             if (updates.description !== undefined) {
-                sanitizedUpdates.description = securityUtils.sanitizeInput(updates.description)?.substring(0, 1000)
+                sanitizedUpdates.description = typeof updates.description === 'string' ? updates.description.trim().substring(0, 1000) : ''
             }
 
             if (updates.department !== undefined) {
-                sanitizedUpdates.department = securityUtils.sanitizeInput(updates.department)?.substring(0, 100)
+                sanitizedUpdates.department = typeof updates.department === 'string' ? updates.department.trim().substring(0, 100) : ''
             }
 
             if (updates.location !== undefined) {
-                sanitizedUpdates.location = securityUtils.sanitizeInput(updates.location)?.substring(0, 200)
+                sanitizedUpdates.location = typeof updates.location === 'string' ? updates.location.trim().substring(0, 200) : ''
             }
 
             if (updates.specifications !== undefined) {
@@ -185,11 +185,12 @@ export const machineService = {
             }
 
             if (updates.image_url !== undefined) {
-                const sanitizedUrl = securityUtils.sanitizeInput(updates.image_url)?.substring(0, 500)
-                if (sanitizedUrl && !securityUtils.validateUrl(sanitizedUrl)) {
-                    return { data: null, error: { message: 'Invalid image URL format' } }
+                const cleanedUrl = typeof updates.image_url === 'string' ? updates.image_url.trim().substring(0, 500) : ''
+                if (cleanedUrl && !securityUtils.validateUrl(cleanedUrl)) {
+                    sanitizedUpdates.image_url = ''
+                } else {
+                    sanitizedUpdates.image_url = cleanedUrl
                 }
-                sanitizedUpdates.image_url = sanitizedUrl
             }
 
             if (typeof updates.is_active === 'boolean') {
@@ -204,8 +205,6 @@ export const machineService = {
             if (Object.keys(sanitizedUpdates).length === 0) {
                 return { data: null, error: { message: 'No valid fields to update' } }
             }
-
-            sanitizedUpdates.updated_at = new Date().toISOString()
 
             securityUtils.secureLog('info', 'Updating machine', {
                 machine_id: machineId,

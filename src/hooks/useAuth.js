@@ -1,17 +1,26 @@
-import { useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, createElement } from 'react'
 import { supabase } from '@/lib/supabase'
 import { authService } from '@/services/authService'
 import { securityUtils } from '@/lib/security'
 
-export function useAuth() {
+const AuthContext = createContext(null)
+
+/**
+ * AuthProvider - Provides shared auth state to the entire component tree.
+ * Without this, each useAuth() call would create independent state,
+ * causing auth changes in one component to not reflect in others.
+ */
+export function AuthProvider({ children }) {
     const [user, setUser] = useState(null)
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [profileLoading, setProfileLoading] = useState(false)
     const [authState, setAuthState] = useState('initializing')
 
     const fetchProfile = useCallback(async (userId) => {
         if (!userId) return
 
+        setProfileLoading(true)
         try {
             const { data, error } = await authService.getProfile(userId)
 
@@ -27,6 +36,8 @@ export function useAuth() {
         } catch (err) {
             securityUtils.secureLog('error', 'Unexpected error fetching profile', err.message)
             setProfile(null)
+        } finally {
+            setProfileLoading(false)
         }
     }, [])
 
@@ -62,9 +73,10 @@ export function useAuth() {
             }
         })
 
-        // Listen for auth changes with proper state management
+        // Listen for auth changes - skip INITIAL_SESSION to avoid double-fetch
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (!mounted) return
+            if (event === 'INITIAL_SESSION') return
 
             securityUtils.secureLog('info', `Auth state change: ${event}`)
 
@@ -91,15 +103,27 @@ export function useAuth() {
         return securityUtils.hasPermission(profile, requiredRole)
     }, [profile])
 
-    return {
+    const value = useMemo(() => ({
         user,
         profile,
         loading,
+        profileLoading,
         authState,
         isAdmin: profile?.role === 'admin' || profile?.role === 'faculty',
         hasPermission,
         signIn: authService.signIn,
         signUp: authService.signUp,
-        signOut: authService.signOut
+        signOut: authService.signOut,
+        refreshProfile: () => user?.id ? fetchProfile(user.id) : Promise.resolve(),
+    }), [user, profile, loading, profileLoading, authState, hasPermission, fetchProfile])
+
+    return createElement(AuthContext.Provider, { value }, children)
+}
+
+export function useAuth() {
+    const context = useContext(AuthContext)
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider')
     }
+    return context
 }

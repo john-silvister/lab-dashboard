@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { bookingService } from '@/services/bookingService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion, AnimatePresence } from 'framer-motion';
 
 const steps = [
@@ -18,7 +19,7 @@ const steps = [
 const BookingForm = ({ machine, onSuccess, onCancel }) => {
     const [step, setStep] = useState(1);
     const { user } = useAuth();
-    const [loading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         date: format(new Date(), 'yyyy-MM-dd'),
         startTime: '09:00',
@@ -37,10 +38,12 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
         // Prevent double submission
         if (loading) return;
 
+        setLoading(true);
         try {
             // Validate start time before end time
             if (formData.startTime >= formData.endTime) {
                 toast.error("End time must be after start time");
+                setLoading(false);
                 return;
             }
 
@@ -54,6 +57,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
 
                 if (startDateTime <= now) {
                     toast.error("Cannot book a time slot that has already passed");
+                    setLoading(false);
                     return;
                 }
             }
@@ -61,6 +65,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
             // Validate date is not in the past
             if (formData.date < today) {
                 toast.error("Cannot book for a past date");
+                setLoading(false);
                 return;
             }
 
@@ -69,6 +74,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
             maxAdvanceDate.setDate(maxAdvanceDate.getDate() + 30);
             if (new Date(formData.date) > maxAdvanceDate) {
                 toast.error("Cannot book more than 30 days in advance");
+                setLoading(false);
                 return;
             }
 
@@ -78,6 +84,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
             const durationHours = (endH * 60 + endM - startH * 60 - startM) / 60;
             if (durationHours > 8) {
                 toast.error("Maximum booking duration is 8 hours");
+                setLoading(false);
                 return;
             }
 
@@ -95,6 +102,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                 // Handle specific database constraint errors
                 if (error.message?.includes('overlapping') || error.message?.includes('conflict')) {
                     toast.error("This time slot is no longer available. Please choose a different time.");
+                    setLoading(false);
                     return;
                 }
                 throw error;
@@ -105,10 +113,32 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
         } catch (error) {
             console.error('Booking error:', error);
             toast.error(error.message || 'Failed to create booking. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const nextStep = () => setStep(s => Math.min(s + 1, 3));
+    const nextStep = () => {
+        // Validate current step before proceeding
+        if (step === 1) {
+            if (formData.startTime >= formData.endTime) {
+                toast.error('End time must be after start time');
+                return;
+            }
+            const today = format(new Date(), 'yyyy-MM-dd');
+            if (formData.date < today) {
+                toast.error('Cannot book for a past date');
+                return;
+            }
+        }
+        if (step === 2) {
+            if (!formData.purpose.trim()) {
+                toast.error('Please provide a purpose for the booking');
+                return;
+            }
+        }
+        setStep(s => Math.min(s + 1, 3));
+    };
     const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
     return (
@@ -231,7 +261,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                             Next <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                     ) : (
-                        <Button type="submit">Confirm Booking</Button>
+                        <Button type="submit" disabled={loading}>{loading ? 'Submitting...' : 'Confirm Booking'}</Button>
                     )}
                 </div>
             </form>

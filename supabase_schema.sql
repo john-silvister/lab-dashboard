@@ -35,7 +35,8 @@ CREATE TABLE machines (
   image_url TEXT,
   is_active BOOLEAN DEFAULT true,
   requires_training BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. Bookings table
@@ -368,8 +369,8 @@ BEGIN
     RAISE EXCEPTION 'Students must use @btech.christuniversity.in email addresses';
   END IF;
 
-  IF NEW.role = 'faculty' AND NOT NEW.email LIKE '%@christuniversity.in' THEN
-    RAISE EXCEPTION 'Faculty must use @christuniversity.in email addresses';
+  IF NEW.role = 'faculty' AND NOT (NEW.email LIKE '%@christuniversity.in' AND NEW.email NOT LIKE '%@btech.christuniversity.in') THEN
+    RAISE EXCEPTION 'Faculty must use @christuniversity.in email addresses (not student subdomains)';
   END IF;
 
   RETURN NEW;
@@ -414,6 +415,10 @@ CREATE TRIGGER set_bookings_updated_at
 
 CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER set_machines_updated_at
+  BEFORE UPDATE ON machines
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Validation triggers

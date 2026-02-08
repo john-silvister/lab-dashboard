@@ -3,6 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Info } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 
 const MachineCard = ({ machine, onBook, onDetails }) => {
@@ -41,13 +42,13 @@ const MachineCard = ({ machine, onBook, onDetails }) => {
                     </div>
                     <div className="flex items-center text-xs text-muted-foreground mt-1">
                         <MapPin className="h-3 w-3 mr-1" />
-                        {machine.location}
+                        {machine.location || 'Location not specified'}
                     </div>
                 </CardHeader>
 
                 <CardContent className="p-4 pt-0 flex-grow">
                     <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                        {machine.description}
+                        {machine.description || 'No description available'}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1">
                         {machine.department && (

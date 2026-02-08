@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Check, X, Clock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Check, X, Clock, User, AlertCircle, CheckCircle2, Calendar } from 'lucide-react';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { bookingService } from '@/services/bookingService';
 import { supabase } from '@/lib/supabase';
@@ -16,10 +17,12 @@ const FacultyDashboard = () => {
     const [pendingBookings, setPendingBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null); // Track which booking is being processed
-    const [realtimeError, setRealtimeError] = useState(false);
+    const [realtimeError, setRealtimeError] = useState(false); // eslint-disable-line no-unused-vars -- set by realtime handler, shown via toast
     const [rejectModal, setRejectModal] = useState({ open: false, booking: null });
     const [rejectReason, setRejectReason] = useState('');
     const [detailBooking, setDetailBooking] = useState(null);
+
+    const refreshTimeoutRef = React.useRef(null);
 
     const fetchPending = useCallback(async () => {
         setLoading(true);
@@ -29,10 +32,14 @@ const FacultyDashboard = () => {
     }, []);
 
     useEffect(() => {
-        fetchPending();
+        fetchPending(); // eslint-disable-line react-hooks/set-state-in-effect
         const channel = supabase
             .channel('faculty-bookings')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchPending())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+                // Debounce realtime updates to prevent race conditions
+                if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+                refreshTimeoutRef.current = setTimeout(() => fetchPending(), 1000);
+            })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                     setRealtimeError(true);
@@ -41,7 +48,10 @@ const FacultyDashboard = () => {
                     setRealtimeError(false);
                 }
             });
-        return () => supabase.removeChannel(channel);
+        return () => {
+            supabase.removeChannel(channel);
+            if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+        };
     }, [fetchPending]);
 
     const handleApprove = async (bookingId) => {
@@ -173,13 +183,14 @@ const FacultyDashboard = () => {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                                            <Button size="sm" variant="outline" onClick={() => setDetailBooking(booking)} className="hidden md:inline-flex">
+                                            <Button size="sm" variant="outline" onClick={() => setDetailBooking(booking)}>
                                                 Details
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                className="min-h-[44px] min-w-[44px] p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                disabled={actionLoading === booking.id}
                                                 onClick={() => setRejectModal({ open: true, booking })}
                                             >
                                                 <X className="h-4 w-4" />
@@ -187,10 +198,11 @@ const FacultyDashboard = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                className="min-h-[44px] min-w-[44px] p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                disabled={actionLoading === booking.id}
                                                 onClick={() => handleApprove(booking.id)}
                                             >
-                                                <Check className="h-4 w-4" />
+                                                {actionLoading === booking.id ? <Clock className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                                             </Button>
                                         </div>
                                     </motion.div>
@@ -256,12 +268,12 @@ const FacultyDashboard = () => {
                             </Card>
                         </div>
                     )}
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setDetailBooking(null)}>Close</Button>
-                        <Button variant="destructive" onClick={() => { setDetailBooking(null); setRejectModal({ open: true, booking: detailBooking }); }}>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button variant="ghost" onClick={() => setDetailBooking(null)} className="w-full sm:w-auto">Close</Button>
+                        <Button variant="destructive" onClick={() => { setDetailBooking(null); setRejectModal({ open: true, booking: detailBooking }); }} className="w-full sm:w-auto">
                             <X className="h-4 w-4 mr-1" /> Reject
                         </Button>
-                        <Button onClick={() => { handleApprove(detailBooking.id); setDetailBooking(null); }} className="bg-green-600 hover:bg-green-700">
+                        <Button onClick={() => { handleApprove(detailBooking.id); setDetailBooking(null); }} className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
                             <Check className="h-4 w-4 mr-1" /> Approve
                         </Button>
                     </DialogFooter>

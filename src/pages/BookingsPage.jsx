@@ -12,6 +12,7 @@ import { format, formatDistanceToNow, isPast, isFuture } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { Link } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion, AnimatePresence } from 'framer-motion';
 
 const statusConfig = {
@@ -108,7 +109,7 @@ const BookingsPage = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('all');
     const [selectedBooking, setSelectedBooking] = useState(null);
-    const [realtimeError, setRealtimeError] = useState(false);
+    const [realtimeError, setRealtimeError] = useState(false); // eslint-disable-line no-unused-vars -- set by realtime handler, shown via toast
     const refreshTimeoutRef = useRef(null); // I9: Use ref instead of state to avoid memory leak
 
     const fetchBookings = useCallback(async () => {
@@ -120,11 +121,11 @@ const BookingsPage = () => {
             setBookings(data || []);
         }
         setLoading(false);
-    }, [user?.id]);
+    }, [user.id]);
 
     useEffect(() => {
         if (user) {
-            fetchBookings();
+            fetchBookings(); // eslint-disable-line react-hooks/set-state-in-effect
             const channel = supabase
                 .channel('my-bookings')
                 .on('postgres_changes', {
@@ -262,7 +263,7 @@ const BookingsPage = () => {
                                 </Badge>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-muted-foreground block">Date</span>
                                     <span className="font-medium">{format(new Date(selectedBooking.booking_date), 'MMMM d, yyyy')}</span>

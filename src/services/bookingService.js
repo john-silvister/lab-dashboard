@@ -19,7 +19,7 @@ export const bookingService = {
                 booking_date: bookingData.booking_date,
                 start_time: bookingData.start_time,
                 end_time: bookingData.end_time,
-                purpose: securityUtils.sanitizeInput(bookingData.purpose)?.substring(0, 500), // Limit purpose length
+                purpose: typeof bookingData.purpose === 'string' ? bookingData.purpose.trim().substring(0, 500) : '',
             }
 
             // Security: Validate required fields
@@ -164,7 +164,7 @@ export const bookingService = {
 
             // Security: Sanitize comments if provided
             if (comments !== undefined) {
-                updateData.faculty_comments = securityUtils.sanitizeInput(comments)?.substring(0, 1000)
+                updateData.faculty_comments = typeof comments === 'string' ? comments.trim().substring(0, 1000) : ''
             }
 
             securityUtils.secureLog('info', 'Updating booking status', {

@@ -14,7 +14,7 @@ const Dashboard = () => {
     const isFaculty = profile?.role === 'faculty' || profile?.role === 'admin';
 
     return (
-        <DashboardLayout role={profile?.role}>
+        <DashboardLayout>
             {isFaculty ? <FacultyDashboard /> : <StudentDashboard />}
         </DashboardLayout>
     );

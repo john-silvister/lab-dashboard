@@ -21,9 +21,10 @@ A full-stack lab equipment booking system for university environments. Students 
 - **My Bookings** -- Tab-filtered view (All / Pending / Approved / Rejected / Past) with cancel and detail modals
 - **Admin panel** -- Machine CRUD management and booking oversight
 - **Conflict detection** -- Server-side RPC checks for overlapping bookings before insert
-- **Responsive design** -- Fully mobile-optimized with adaptive layouts for profiles, bookings, and admin tools
+- **Responsive design** -- Fully mobile-optimized with adaptive layouts, touch-friendly controls (44px minimum targets), and responsive grids
 - **Animated UI** -- Page transitions and micro-interactions powered by Framer Motion
 - **Toast notifications** -- Instant feedback for all user actions via Sonner
+- **Security hardened** -- Input sanitization, rate-limited login, secure logging, Vercel security headers
 
 ---
 
@@ -52,10 +53,13 @@ src/
     dashboard/      -- StudentDashboard, FacultyDashboard
     layouts/        -- DashboardLayout (sidebar + mobile nav)
     machines/       -- MachineCard, MachineDetailsModal
-    ui/             -- shadcn/ui primitives (button, card, dialog, ...)
+    profile/        -- ProfileModal
+    ui/             -- shadcn/ui primitives (button, card, dialog, label, ...)
   hooks/
-    useAuth.js      -- Auth state, profile, sign-in/out helpers
+    useAuth.js      -- Auth context provider + hook
   lib/
+    constants.js    -- App-wide constants (allowed email domains)
+    security.js     -- Input validation, rate limiting, secure logging
     supabase.js     -- Supabase client initialization
     utils.js        -- cn() utility (clsx + tailwind-merge)
   pages/

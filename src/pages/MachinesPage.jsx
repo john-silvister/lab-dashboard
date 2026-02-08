@@ -29,7 +29,7 @@ const MachinesPage = () => {
     }, [filters]);
 
     useEffect(() => {
-        fetchMachines();
+        fetchMachines(); // eslint-disable-line react-hooks/set-state-in-effect
     }, [fetchMachines]);
 
     const filteredMachines = machines.filter(m =>
@@ -98,14 +98,14 @@ const MachinesPage = () => {
                 )}
 
                 {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map(i => (
                             <div key={i} className="h-80 bg-muted animate-pulse rounded-xl" />
                         ))}
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {filteredMachines.map(machine => (
                                 <MachineCard
                                     key={machine.id}

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { UserPlus, Microscope, Eye, EyeOff, GraduationCap, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
 
@@ -50,18 +51,18 @@ const SignupPage = () => {
         if (loading) return;
 
         try {
-            // Security: Sanitize all inputs
-            const sanitizedFullName = securityUtils.sanitizeInput(fullName);
-            const sanitizedEmail = securityUtils.sanitizeInput(email).toLowerCase().trim();
-            const sanitizedDepartment = securityUtils.sanitizeInput(department);
-            const sanitizedPhone = securityUtils.sanitizeInput(phone);
-            const sanitizedRegisterNumber = securityUtils.sanitizeInput(registerNumber);
-            const sanitizedSpecialization = securityUtils.sanitizeInput(specialization);
-            const sanitizedYearOfPassout = securityUtils.sanitizeInput(yearOfPassout);
+            // Trim inputs for validation
+            const trimmedFullName = fullName.trim();
+            const trimmedEmail = email.toLowerCase().trim();
+            const trimmedDepartment = department.trim();
+            const trimmedPhone = phone.trim();
+            const trimmedRegisterNumber = registerNumber.trim();
+            const trimmedSpecialization = specialization.trim();
+            const trimmedYearOfPassout = yearOfPassout.trim();
 
             // Security: Validate email domain based on role
-            const isValidStudentEmail = sanitizedEmail.endsWith('@btech.christuniversity.in');
-            const isValidFacultyEmail = sanitizedEmail.endsWith('@christuniversity.in');
+            const isValidStudentEmail = trimmedEmail.endsWith('@btech.christuniversity.in');
+            const isValidFacultyEmail = trimmedEmail.endsWith('@christuniversity.in') && !trimmedEmail.endsWith('@btech.christuniversity.in');
 
             if (role === 'student' && !isValidStudentEmail) {
                 toast.error('Students must use @btech.christuniversity.in email addresses');
@@ -69,12 +70,12 @@ const SignupPage = () => {
             }
 
             if (role === 'faculty' && !isValidFacultyEmail) {
-                toast.error('Faculty must use @christuniversity.in email addresses');
+                toast.error('Faculty must use @christuniversity.in email addresses (not student subdomains)');
                 return;
             }
 
             // Security: Validate email format
-            if (!securityUtils.validateEmail(sanitizedEmail)) {
+            if (!securityUtils.validateEmail(trimmedEmail)) {
                 toast.error('Please enter a valid email address');
                 return;
             }
@@ -86,34 +87,34 @@ const SignupPage = () => {
             }
 
             // Security: Validate required fields
-            if (!sanitizedFullName || sanitizedFullName.length < 2) {
+            if (!trimmedFullName || trimmedFullName.length < 2) {
                 toast.error('Please enter a valid full name');
                 return;
             }
 
-            if (!sanitizedDepartment || !DEPARTMENTS.includes(sanitizedDepartment)) {
+            if (!trimmedDepartment || !DEPARTMENTS.includes(trimmedDepartment)) {
                 toast.error('Please select a valid department');
                 return;
             }
 
             // Security: Validate student-specific fields
             if (role === 'student') {
-                if (!securityUtils.validatePhoneNumber(sanitizedPhone)) {
+                if (!securityUtils.validatePhoneNumber(trimmedPhone)) {
                     toast.error('Please enter a valid phone number');
                     return;
                 }
 
-                if (!sanitizedRegisterNumber || sanitizedRegisterNumber.length < 6) {
+                if (!trimmedRegisterNumber || trimmedRegisterNumber.length < 6) {
                     toast.error('Please enter a valid register number');
                     return;
                 }
 
-                if (!sanitizedSpecialization || sanitizedSpecialization.length < 2) {
+                if (!trimmedSpecialization || trimmedSpecialization.length < 2) {
                     toast.error('Please enter a valid specialization');
                     return;
                 }
 
-                if (!sanitizedYearOfPassout || !generatePassoutYears().includes(sanitizedYearOfPassout)) {
+                if (!trimmedYearOfPassout || !generatePassoutYears().includes(trimmedYearOfPassout)) {
                     toast.error('Please select a valid year of passout');
                     return;
                 }
@@ -122,20 +123,20 @@ const SignupPage = () => {
             setLoading(true);
 
             const metadata = {
-                full_name: sanitizedFullName,
+                full_name: trimmedFullName,
                 role,
-                department: sanitizedDepartment,
+                department: trimmedDepartment,
             };
 
             // Add student-specific fields
             if (role === 'student') {
-                metadata.phone = sanitizedPhone;
-                metadata.register_number = sanitizedRegisterNumber;
-                metadata.specialization = sanitizedSpecialization;
-                metadata.year_of_passout = sanitizedYearOfPassout;
+                metadata.phone = trimmedPhone;
+                metadata.register_number = trimmedRegisterNumber;
+                metadata.specialization = trimmedSpecialization;
+                metadata.year_of_passout = trimmedYearOfPassout;
             }
 
-            const { error } = await signUp(sanitizedEmail, password, metadata);
+            const { error } = await signUp(trimmedEmail, password, metadata);
             if (error) throw error;
 
             toast.success('Account created! Please verify your email.');
@@ -148,38 +149,33 @@ const SignupPage = () => {
         }
     };
 
-    // Security: Sanitize input handlers
+    // Input handlers - no HTML encoding, just raw form values
     const handleFullNameChange = (e) => {
-        const sanitized = securityUtils.sanitizeInput(e.target.value);
-        setFullName(sanitized);
+        setFullName(e.target.value);
     };
 
     const handleEmailChange = (e) => {
-        const sanitized = securityUtils.sanitizeInput(e.target.value);
-        setEmail(sanitized);
+        setEmail(e.target.value);
     };
 
     const handlePhoneChange = (e) => {
-        const sanitized = securityUtils.sanitizeInput(e.target.value);
         // Allow only numbers, spaces, hyphens, and plus signs for phone
-        const phoneOnly = sanitized.replace(/[^0-9\s\-+]/g, '');
+        const phoneOnly = e.target.value.replace(/[^0-9\s\-+()]/g, '');
         setPhone(phoneOnly);
     };
 
     const handleRegisterNumberChange = (e) => {
-        const sanitized = securityUtils.sanitizeInput(e.target.value);
         // Allow only alphanumeric characters for register number
-        const alphaNumericOnly = sanitized.replace(/[^a-zA-Z0-9]/g, '');
+        const alphaNumericOnly = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
         setRegisterNumber(alphaNumericOnly);
     };
 
     const handleSpecializationChange = (e) => {
-        const sanitized = securityUtils.sanitizeInput(e.target.value);
-        setSpecialization(sanitized);
+        setSpecialization(e.target.value);
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+        <div className="min-h-screen flex items-start sm:items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4 py-8">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -230,7 +226,7 @@ const SignupPage = () => {
                                 <select
                                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                     value={department}
-                                    onChange={(e) => setDepartment(securityUtils.sanitizeInput(e.target.value))}
+                                    onChange={(e) => setDepartment(e.target.value)}
                                     required
                                 >
                                     <option value="">Select Department</option>
@@ -282,7 +278,7 @@ const SignupPage = () => {
                                         <select
                                             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                             value={yearOfPassout}
-                                            onChange={(e) => setYearOfPassout(securityUtils.sanitizeInput(e.target.value))}
+                                            onChange={(e) => setYearOfPassout(e.target.value)}
                                             required
                                         >
                                             <option value="">Select Year</option>
@@ -337,7 +333,7 @@ const SignupPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                         tabIndex={-1}
                                     >
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

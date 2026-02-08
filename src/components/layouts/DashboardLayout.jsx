@@ -57,9 +57,10 @@ const MobileNav = ({ navItems, currentPath, onSignOut }) => {
     );
 };
 
-const DashboardLayout = ({ children, role = 'student' }) => {
-    const { signOut } = useAuth();
+const DashboardLayout = ({ children }) => {
+    const { profile, signOut } = useAuth();
     const location = useLocation();
+    const role = profile?.role || 'student';
 
     const navItems = [
         { name: 'Dashboard', href: '/', icon: LayoutDashboard },

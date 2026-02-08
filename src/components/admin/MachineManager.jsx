@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Edit, Trash } from 'lucide-react';
+import { Plus, Edit, Trash, Microscope } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 const MachineManager = () => {
@@ -26,7 +27,7 @@ const MachineManager = () => {
 
     useEffect(() => {
         fetchMachines();
-    }, []);
+    }, [fetchMachines]);
 
     const fetchMachines = useCallback(async () => {
         setLoading(true);
@@ -210,7 +211,7 @@ const MachineManager = () => {
                                 required
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Department</label>
                                 <select
