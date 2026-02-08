@@ -25,16 +25,16 @@ const MachineManager = () => {
         is_active: true
     });
 
-    useEffect(() => {
-        fetchMachines();
-    }, [fetchMachines]);
-
     const fetchMachines = useCallback(async () => {
         setLoading(true);
         const { data } = await machineService.getMachines({ isAdmin: true });
         if (data) setMachines(data);
         setLoading(false);
     }, []);
+
+    useEffect(() => {
+        fetchMachines();
+    }, [fetchMachines]);
 
     const resetForm = () => {
         setFormData({

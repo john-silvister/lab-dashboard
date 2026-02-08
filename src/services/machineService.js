@@ -106,8 +106,8 @@ export const machineService = {
             }
 
             // Security: Validate required fields
-            if (!sanitizedData.name || !sanitizedData.department) {
-                return { data: null, error: { message: 'Name and department are required' } }
+            if (!sanitizedData.name) {
+                return { data: null, error: { message: 'Machine name is required' } }
             }
 
             // Security: Validate image URL format if provided
