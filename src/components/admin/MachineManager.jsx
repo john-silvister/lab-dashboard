@@ -3,11 +3,12 @@ import { machineService } from '@/services/machineService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Edit, Trash, Microscope } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { securityUtils } from '@/lib/security';
+import { DEPARTMENTS } from '@/lib/constants';
 
 const MachineManager = () => {
     const [machines, setMachines] = useState([]);
@@ -74,48 +75,49 @@ const MachineManager = () => {
 
         setSubmitting(true);
 
-        try {
+        const promise = (async () => {
             let result;
-
             if (editingMachine) {
                 // Optimistic update for editing
                 const optimisticMachine = { ...editingMachine, ...formData };
                 setMachines(prev => prev.map(m => m.id === editingMachine.id ? optimisticMachine : m));
 
                 result = await machineService.updateMachine(editingMachine.id, formData);
-                if (result.error) throw result.error;
-
-                toast.success('Machine updated successfully');
             } else {
                 result = await machineService.createMachine(formData);
-                if (result.error) throw result.error;
-
-                // Add new machine to list optimistically
-                if (result.data) {
-                    setMachines(prev => [result.data, ...prev]);
-                }
-
-                toast.success('Machine created successfully');
             }
 
-            setIsModalOpen(false);
-            resetForm();
+            if (result.error) throw new Error(result.error.message);
 
-            // Refresh in background to ensure consistency
-            setTimeout(() => fetchMachines(), 1000);
-
-        } catch (error) {
-            securityUtils.secureLog('error', 'Error saving machine', error?.message);
-
-            // Revert optimistic update on error
-            if (editingMachine) {
-                fetchMachines();
+            if (!editingMachine && result.data) {
+                // Add new machine to list optimistically if not already there (though we are re-fetching)
+                setMachines(prev => [result.data, ...prev]);
             }
 
-            toast.error('Failed to save machine. Please try again.');
-        } finally {
+            return editingMachine ? 'Machine updated successfully' : 'Machine created successfully';
+        })();
+
+        toast.promise(promise, {
+            loading: editingMachine ? 'Updating machine...' : 'Creating machine...',
+            success: (msg) => {
+                setIsModalOpen(false);
+                resetForm();
+                // Refresh in background to ensure consistency
+                setTimeout(() => fetchMachines(), 1000);
+                return msg;
+            },
+            error: (err) => {
+                // Revert optimistic update on error if needed (fetching does this)
+                if (editingMachine) fetchMachines();
+                return 'Failed to save machine. Please try again.';
+            }
+        });
+
+        promise.catch((err) => {
+            securityUtils.secureLog('error', 'Error saving machine', err?.message);
+        }).finally(() => {
             setSubmitting(false);
-        }
+        });
     };
 
     const handleDelete = async (machine) => {
@@ -127,19 +129,21 @@ const MachineManager = () => {
         const originalMachines = [...machines];
         setMachines(prev => prev.filter(m => m.id !== machine.id));
 
-        try {
-            const { error } = await machineService.deleteMachine(machine.id);
+        const promise = machineService.deleteMachine(machine.id).then(({ error }) => {
             if (error) throw error;
+            return 'Machine deleted successfully';
+        });
 
-            toast.success('Machine deleted successfully');
-        } catch (error) {
-            securityUtils.secureLog('error', 'Error deleting machine', error?.message);
-
-            // Revert optimistic update on error
-            setMachines(originalMachines);
-
-            toast.error('Failed to delete machine. Please try again.');
-        }
+        toast.promise(promise, {
+            loading: 'Deleting machine...',
+            success: 'Machine deleted successfully',
+            error: (err) => {
+                // Revert optimistic update on error
+                setMachines(originalMachines);
+                securityUtils.secureLog('error', 'Error deleting machine', err?.message);
+                return 'Failed to delete machine. Please try again.';
+            }
+        });
     };
 
     return (
@@ -166,8 +170,8 @@ const MachineManager = () => {
                         <div key={machine.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg bg-card gap-4">
                             <div className="flex items-center gap-4 w-full md:w-auto">
                                 <div className="h-16 w-16 rounded-md bg-muted overflow-hidden shrink-0">
-                                    {machine.image_url ? (
-                                        <img src={machine.image_url} alt={machine.name} className="h-full w-full object-cover" />
+                                    {securityUtils.isSafeImageUrl(machine.image_url) ? (
+                                        <img src={machine.image_url} alt={machine.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
                                         <div className="h-full w-full flex items-center justify-center text-muted-foreground">
                                             <Microscope className="h-8 w-8 opacity-20" />
@@ -202,11 +206,13 @@ const MachineManager = () => {
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{editingMachine ? 'Edit Machine' : 'Add New Machine'}</DialogTitle>
+                        <DialogDescription>{editingMachine ? 'Update machine details below.' : 'Fill in the details to add a new machine to the lab.'}</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Name *</label>
+                            <label htmlFor="machine-name" className="text-sm font-medium">Name *</label>
                             <Input
+                                id="machine-name"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 required
@@ -214,25 +220,23 @@ const MachineManager = () => {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Department</label>
+                                <label htmlFor="machine-department" className="text-sm font-medium">Department</label>
                                 <select
+                                    id="machine-department"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     value={formData.department}
                                     onChange={e => setFormData({ ...formData, department: e.target.value })}
                                 >
                                     <option value="">Select Department</option>
-                                    <option value="CSE">CSE</option>
-                                    <option value="ECE">ECE</option>
-                                    <option value="EEE">EEE</option>
-                                    <option value="Mechanical">Mechanical</option>
-                                    <option value="Civil">Civil</option>
-                                    <option value="Chemical">Chemical</option>
-                                    <option value="Biotechnology">Biotechnology</option>
+                                    {DEPARTMENTS.map(dept => (
+                                        <option key={dept} value={dept}>{dept}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Location</label>
+                                <label htmlFor="machine-location" className="text-sm font-medium">Location</label>
                                 <Input
+                                    id="machine-location"
                                     value={formData.location}
                                     onChange={e => setFormData({ ...formData, location: e.target.value })}
                                 />
@@ -240,8 +244,9 @@ const MachineManager = () => {
                         </div>
                         {/* I2: Added image_url field */}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Image URL</label>
+                            <label htmlFor="machine-image-url" className="text-sm font-medium">Image URL</label>
                             <Input
+                                id="machine-image-url"
                                 type="url"
                                 placeholder="https://example.com/image.jpg"
                                 value={formData.image_url}
@@ -250,8 +255,9 @@ const MachineManager = () => {
                             <p className="text-xs text-muted-foreground">Enter a URL to an image of the machine</p>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Description</label>
+                            <label htmlFor="machine-description" className="text-sm font-medium">Description</label>
                             <textarea
+                                id="machine-description"
                                 className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 value={formData.description}
                                 onChange={e => setFormData({ ...formData, description: e.target.value })}

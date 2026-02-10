@@ -8,6 +8,7 @@ import { bookingService } from '@/services/bookingService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { securityUtils } from '@/lib/security';
+import { BOOKING_LIMITS } from '@/lib/constants';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -70,50 +71,52 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                 return;
             }
 
-            // Validate not too far in advance (30 days)
+            // Validate not too far in advance
             const maxAdvanceDate = new Date();
-            maxAdvanceDate.setDate(maxAdvanceDate.getDate() + 30);
+            maxAdvanceDate.setDate(maxAdvanceDate.getDate() + BOOKING_LIMITS.MAX_ADVANCE_DAYS);
             if (new Date(formData.date) > maxAdvanceDate) {
-                toast.error("Cannot book more than 30 days in advance");
+                toast.error(`Cannot book more than ${BOOKING_LIMITS.MAX_ADVANCE_DAYS} days in advance`);
                 setLoading(false);
                 return;
             }
 
-            // Validate maximum duration (8 hours)
+            // Validate maximum duration
             const [startH, startM] = formData.startTime.split(':').map(Number);
             const [endH, endM] = formData.endTime.split(':').map(Number);
             const durationHours = (endH * 60 + endM - startH * 60 - startM) / 60;
-            if (durationHours > 8) {
-                toast.error("Maximum booking duration is 8 hours");
+            if (durationHours > BOOKING_LIMITS.MAX_DURATION_HOURS) {
+                toast.error(`Maximum booking duration is ${BOOKING_LIMITS.MAX_DURATION_HOURS} hours`);
                 setLoading(false);
                 return;
             }
 
-            const { error } = await bookingService.createBooking({
+            // Sanitise purpose before sending to backend
+            const sanitisedPurpose = securityUtils.sanitizeInput(formData.purpose);
+
+            const { data, error } = await bookingService.createBooking({
                 machine_id: machine.id,
                 student_id: user.id,
                 booking_date: formData.date,
                 start_time: formData.startTime + ':00',
                 end_time: formData.endTime + ':00',
-                purpose: formData.purpose,
+                purpose: sanitisedPurpose,
                 status: 'pending'
             });
 
             if (error) {
-                // Handle specific database constraint errors
+                // Check for specific error messages like overlapping
                 if (error.message?.includes('overlapping') || error.message?.includes('conflict')) {
-                    toast.error("This time slot is no longer available. Please choose a different time.");
-                    setLoading(false);
-                    return;
+                    toast.error("This time slot is no longer available.");
+                } else {
+                    toast.error(error.message || 'Failed to create booking.');
                 }
-                throw error;
+            } else {
+                toast.success('Booking request sent successfully!');
+                onSuccess();
             }
-
-            toast.success('Booking request sent!');
-            onSuccess();
         } catch (error) {
             securityUtils.secureLog('error', 'Booking error', error?.message);
-            toast.error('Failed to create booking. Please try again.');
+            toast.error('An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }

@@ -9,8 +9,7 @@ import { toast } from 'sonner';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
-
-const DEPARTMENTS = ['CSE', 'ECE', 'EEE', 'Mechanical', 'Civil'];
+import { DEPARTMENTS } from '@/lib/constants';
 
 // Generate dynamic year options for passout
 const generatePassoutYears = () => {
@@ -196,8 +195,9 @@ const SignupPage = () => {
                     <CardContent className="pt-6">
                         <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Full Name</label>
+                                <label htmlFor="signup-fullname" className="text-sm font-medium">Full Name</label>
                                 <Input
+                                    id="signup-fullname"
                                     placeholder="John Doe"
                                     value={fullName}
                                     onChange={handleFullNameChange}
@@ -207,8 +207,9 @@ const SignupPage = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Email</label>
+                                <label htmlFor="signup-email" className="text-sm font-medium">Email</label>
                                 <Input
+                                    id="signup-email"
                                     type="email"
                                     placeholder={role === 'student' ? 'your.name@btech.christuniversity.in' : 'your.name@christuniversity.in'}
                                     value={email}
@@ -222,8 +223,9 @@ const SignupPage = () => {
                                 </p>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Department</label>
+                                <label htmlFor="signup-department" className="text-sm font-medium">Department</label>
                                 <select
+                                    id="signup-department"
                                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                     value={department}
                                     onChange={(e) => setDepartment(e.target.value)}
@@ -239,8 +241,9 @@ const SignupPage = () => {
                             {role === 'student' && (
                                 <>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Phone Number</label>
+                                        <label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</label>
                                         <Input
+                                            id="signup-phone"
                                             type="tel"
                                             placeholder="+91 xxxxxxxxxx"
                                             value={phone}
@@ -251,8 +254,9 @@ const SignupPage = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Register Number</label>
+                                        <label htmlFor="signup-register" className="text-sm font-medium">Register Number</label>
                                         <Input
+                                            id="signup-register"
                                             placeholder="2xxxxxx"
                                             value={registerNumber}
                                             onChange={handleRegisterNumberChange}
@@ -262,8 +266,9 @@ const SignupPage = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Specialization</label>
+                                        <label htmlFor="signup-specialization" className="text-sm font-medium">Specialization</label>
                                         <Input
+                                            id="signup-specialization"
                                             placeholder="E.g., Data Science, AI/ML, IoT, Cybersecurity"
                                             value={specialization}
                                             onChange={handleSpecializationChange}
@@ -274,8 +279,9 @@ const SignupPage = () => {
                                         <p className="text-xs text-muted-foreground">Mention your course</p>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Year of Passout</label>
+                                        <label htmlFor="signup-passout" className="text-sm font-medium">Year of Passout</label>
                                         <select
+                                            id="signup-passout"
                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                             value={yearOfPassout}
                                             onChange={(e) => setYearOfPassout(e.target.value)}
@@ -296,6 +302,8 @@ const SignupPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setRole('student')}
+                                        aria-pressed={role === 'student'}
+                                        aria-label="Register as student"
                                         className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${role === 'student'
                                             ? 'border-primary bg-primary/5 text-primary'
                                             : 'border-border hover:border-muted-foreground/50'
@@ -307,6 +315,8 @@ const SignupPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setRole('faculty')}
+                                        aria-pressed={role === 'faculty'}
+                                        aria-label="Register as faculty"
                                         className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${role === 'faculty'
                                             ? 'border-primary bg-primary/5 text-primary'
                                             : 'border-border hover:border-muted-foreground/50'
@@ -318,9 +328,10 @@ const SignupPage = () => {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Password</label>
+                                <label htmlFor="signup-password" className="text-sm font-medium">Password</label>
                                 <div className="relative">
                                     <Input
+                                        id="signup-password"
                                         type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
@@ -335,6 +346,7 @@ const SignupPage = () => {
                                         onClick={() => setShowPassword(!showPassword)}
                                         className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                         tabIndex={-1}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     >
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </button>

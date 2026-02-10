@@ -1,22 +1,12 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Info } from 'lucide-react';
+import { securityUtils } from '@/lib/security';
 
 const MachineDetailsModal = ({ machine, isOpen, onClose, onBook }) => {
     if (!machine) return null;
-
-    // Security: Validate image URLs before rendering
-    const isSafeImageUrl = (url) => {
-        if (!url || typeof url !== 'string') return false;
-        try {
-            const parsed = new URL(url);
-            return parsed.protocol === 'https:' || parsed.protocol === 'http:';
-        } catch {
-            return false;
-        }
-    };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -28,11 +18,12 @@ const MachineDetailsModal = ({ machine, isOpen, onClose, onBook }) => {
                             {machine.is_active ? "Available" : "Unavailable"}
                         </Badge>
                     </div>
+                    <DialogDescription>View machine specifications, location, and availability details.</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6">
                     <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted max-h-[30vh]">
-                        {isSafeImageUrl(machine.image_url) ? (
+                        {securityUtils.isSafeImageUrl(machine.image_url) ? (
                             <img src={machine.image_url} alt={machine.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center bg-secondary/50 text-muted-foreground">

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Check, X, Clock, User, AlertCircle, CheckCircle2, Calendar } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
@@ -20,6 +20,7 @@ const FacultyDashboard = () => {
     const [realtimeError, setRealtimeError] = useState(false); // eslint-disable-line no-unused-vars -- set by realtime handler, shown via toast
     const [rejectModal, setRejectModal] = useState({ open: false, booking: null });
     const [rejectReason, setRejectReason] = useState('');
+    const [rejectLoading, setRejectLoading] = useState(false);
     const [detailBooking, setDetailBooking] = useState(null);
 
     const refreshTimeoutRef = React.useRef(null);
@@ -74,7 +75,10 @@ const FacultyDashboard = () => {
             toast.error('Please provide a reason for rejection');
             return;
         }
+        if (rejectLoading) return;
+        setRejectLoading(true);
         const { error } = await bookingService.updateBookingStatus(rejectModal.booking.id, 'rejected', rejectReason);
+        setRejectLoading(false);
         if (error) {
             toast.error('Failed to reject booking');
         } else {
@@ -103,7 +107,7 @@ const FacultyDashboard = () => {
                         <Clock className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.pending}</div>
+                        <div className="text-2xl font-bold" aria-live="polite">{stats.pending}</div>
                         <p className="text-xs text-muted-foreground">Requests awaiting review</p>
                     </CardContent>
                 </Card>
@@ -134,7 +138,7 @@ const FacultyDashboard = () => {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div className="space-y-4">
+                        <div className="space-y-4" aria-busy="true" aria-label="Loading bookings">
                             {[1, 2, 3].map(i => <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />)}
                         </div>
                     ) : pendingBookings.length === 0 ? (
@@ -142,7 +146,7 @@ const FacultyDashboard = () => {
                             No pending requests. All caught up!
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-4" aria-live="polite">
                             {pendingBookings.map((booking, index) => {
                                 const student = booking.profiles || {};
                                 const machine = booking.machines || {};
@@ -183,7 +187,7 @@ const FacultyDashboard = () => {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                                            <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => setDetailBooking(booking)}>
+                                            <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => setDetailBooking(booking)} aria-label={`View details for ${machine.name || 'booking'}`}>
                                                 Details
                                             </Button>
                                             <Button
@@ -192,6 +196,7 @@ const FacultyDashboard = () => {
                                                 className="min-h-[44px] min-w-[44px] p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                                                 disabled={actionLoading === booking.id}
                                                 onClick={() => setRejectModal({ open: true, booking })}
+                                                aria-label={`Reject booking for ${machine.name || 'machine'}`}
                                             >
                                                 <X className="h-4 w-4" />
                                             </Button>
@@ -201,6 +206,7 @@ const FacultyDashboard = () => {
                                                 className="min-h-[44px] min-w-[44px] p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                                                 disabled={actionLoading === booking.id}
                                                 onClick={() => handleApprove(booking.id)}
+                                                aria-label={`Approve booking for ${machine.name || 'machine'}`}
                                             >
                                                 {actionLoading === booking.id ? <Clock className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                                             </Button>
@@ -218,14 +224,17 @@ const FacultyDashboard = () => {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Reject Booking</DialogTitle>
+                        <DialogDescription>Provide a reason for rejecting this booking request.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">
                             Rejecting {rejectModal.booking?.profiles?.full_name}'s request for {rejectModal.booking?.machines?.name}.
                         </p>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Reason for rejection *</label>
-                            <Input
+                            <label htmlFor="reject-reason" className="text-sm font-medium">Reason for rejection *</label>
+                            <textarea
+                                id="reject-reason"
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="e.g., Equipment under maintenance, reschedule for next week"
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
@@ -233,8 +242,8 @@ const FacultyDashboard = () => {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setRejectModal({ open: false, booking: null }); setRejectReason(''); }}>Cancel</Button>
-                        <Button variant="destructive" onClick={handleReject}>Reject Booking</Button>
+                        <Button variant="outline" onClick={() => { setRejectModal({ open: false, booking: null }); setRejectReason(''); }} disabled={rejectLoading}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleReject} disabled={rejectLoading}>{rejectLoading ? 'Rejecting...' : 'Reject Booking'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -244,6 +253,7 @@ const FacultyDashboard = () => {
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Booking Request Details</DialogTitle>
+                        <DialogDescription>Review student and booking information before approving or rejecting.</DialogDescription>
                     </DialogHeader>
                     {detailBooking && (
                         <div className="space-y-4">

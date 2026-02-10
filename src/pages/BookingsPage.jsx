@@ -225,9 +225,15 @@ const BookingsPage = () => {
                                 ))}
                             </div>
                         ) : filteredBookings.length === 0 ? (
-                            <div className="text-center py-20 space-y-4">
-                                <p className="text-muted-foreground">No bookings found.</p>
-                                <Button asChild variant="outline">
+                            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                                <FileText className="h-16 w-16 text-muted-foreground/30" />
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-semibold">No bookings found</h3>
+                                    <p className="text-muted-foreground max-w-sm mx-auto">
+                                        You haven't made any booking requests yet. Browse our equipment to get started.
+                                    </p>
+                                </div>
+                                <Button asChild variant="outline" className="mt-4">
                                     <Link to="/machines">Browse Machines</Link>
                                 </Button>
                             </div>

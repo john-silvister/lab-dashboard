@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "vercel-build": "vite build"
+    "vercel-build": "eslint . && vite build"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

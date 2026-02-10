@@ -159,6 +159,30 @@ export const securityUtils = {
         const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?/]/.test(password)
 
         return hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar
+    },
+
+    // Validate image URLs — HTTPS only in production to prevent mixed-content and MITM
+    isSafeImageUrl: (url) => {
+        if (!url || typeof url !== 'string') return false
+        try {
+            const parsed = new URL(url)
+            return parsed.protocol === 'https:'
+        } catch {
+            return false
+        }
+    },
+
+    // Hash email for avatar services to avoid leaking raw email addresses
+    hashForAvatar: async (email) => {
+        if (!email || typeof email !== 'string') return 'default'
+        try {
+            const msgBuffer = new TextEncoder().encode(email.trim().toLowerCase())
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+            const hashArray = Array.from(new Uint8Array(hashBuffer))
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+        } catch {
+            return 'default'
+        }
     }
 }
 

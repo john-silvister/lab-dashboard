@@ -5,17 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Info } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
-
-// Security: Validate image URLs before rendering to prevent tracking pixels or XSS
-const isSafeImageUrl = (url) => {
-    if (!url || typeof url !== 'string') return false;
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
-    } catch {
-        return false;
-    }
-};
+import { securityUtils } from '@/lib/security';
 
 const MachineCard = ({ machine, onBook, onDetails }) => {
     return (
@@ -27,7 +17,7 @@ const MachineCard = ({ machine, onBook, onDetails }) => {
         >
             <Card className="overflow-hidden border-border/50 h-full flex flex-col group hover:shadow-xl transition-all duration-300">
                 <div className="aspect-video w-full bg-muted relative overflow-hidden">
-                    {isSafeImageUrl(machine.image_url) ? (
+                    {securityUtils.isSafeImageUrl(machine.image_url) ? (
                         <img
                             src={machine.image_url}
                             alt={machine.name}
@@ -35,7 +25,7 @@ const MachineCard = ({ machine, onBook, onDetails }) => {
                             referrerPolicy="no-referrer"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-secondary/50">
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-secondary/50" role="img" aria-label="No image available">
                             <Info className="h-10 w-10 opacity-20" />
                         </div>
                     )}
@@ -75,6 +65,7 @@ const MachineCard = ({ machine, onBook, onDetails }) => {
                         size="sm"
                         className="flex-1"
                         onClick={() => onDetails(machine)}
+                        aria-label={`View details for ${machine.name}`}
                     >
                         Details
                     </Button>
@@ -83,6 +74,7 @@ const MachineCard = ({ machine, onBook, onDetails }) => {
                         className="flex-1" // "flex-1 shadow-lg shadow-primary/20"
                         onClick={() => onBook(machine)}
                         disabled={!machine.is_active}
+                        aria-label={`Book ${machine.name}`}
                     >
                         Book Now
                     </Button>

@@ -5,9 +5,26 @@ import { machineService } from '@/services/machineService';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Filter, X } from 'lucide-react';
+
 import BookingModal from '@/components/bookings/BookingModal';
 import MachineDetailsModal from '@/components/machines/MachineDetailsModal';
+// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
+import { motion } from 'framer-motion';
 
+const container = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1
+        }
+    }
+};
+
+const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+};
 
 const MachinesPage = () => {
     const [machines, setMachines] = useState([]);
@@ -105,16 +122,22 @@ const MachinesPage = () => {
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <motion.div
+                            variants={container}
+                            initial="hidden"
+                            animate="show"
+                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                        >
                             {filteredMachines.map(machine => (
-                                <MachineCard
-                                    key={machine.id}
-                                    machine={machine}
-                                    onBook={handleBook}
-                                    onDetails={handleDetails}
-                                />
+                                <motion.div key={machine.id} variants={item}>
+                                    <MachineCard
+                                        machine={machine}
+                                        onBook={handleBook}
+                                        onDetails={handleDetails}
+                                    />
+                                </motion.div>
                             ))}
-                        </div>
+                        </motion.div>
                         {filteredMachines.length === 0 && (
                             <div className="text-center py-20 text-muted-foreground">
                                 <p>No machines found matching your criteria.</p>

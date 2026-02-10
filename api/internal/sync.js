@@ -64,6 +64,14 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method not allowed' });
     }
 
+    // Guard required environment variables
+    const requiredEnvVars = ['GCP_CLIENT_EMAIL', 'GCP_PRIVATE_KEY', 'AUDIT_SHEET_ID', 'INTERNAL_WEBHOOK_SECRET'];
+    for (const envVar of requiredEnvVars) {
+        if (!process.env[envVar]) {
+            return res.status(500).json({ message: `Server misconfigured: missing ${envVar}` });
+        }
+    }
+
     // Verify shared secret — Supabase sends this in the header
     const secret = req.headers['x-webhook-secret'];
     if (!secret || secret !== process.env.INTERNAL_WEBHOOK_SECRET) {

@@ -9,13 +9,7 @@ import { toast } from 'sonner';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
-
-// Security: Rate limiting key is obfuscated to make client-side bypass slightly harder.
-// NOTE: Client-side rate limiting is defense-in-depth only. Configure server-side
-// rate limiting via Supabase Auth settings or Edge Functions for real protection.
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-const RATE_LIMIT_KEY = '_rl_auth_state';
+import { RATE_LIMIT } from '@/lib/constants';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -31,7 +25,7 @@ const LoginPage = () => {
     useEffect(() => {
         const checkRateLimit = () => {
             try {
-                const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
+                const stored = sessionStorage.getItem(RATE_LIMIT.STORAGE_KEY);
                 if (stored) {
                     const { lockedUntil } = JSON.parse(stored);
                     const now = Date.now();
@@ -40,7 +34,7 @@ const LoginPage = () => {
                         setLockoutRemaining(Math.ceil((lockedUntil - now) / 1000));
                     } else if (lockedUntil && now >= lockedUntil) {
                         // Lockout expired, reset
-                        sessionStorage.removeItem(RATE_LIMIT_KEY);
+                        sessionStorage.removeItem(RATE_LIMIT.STORAGE_KEY);
                         setIsLocked(false);
                         setLockoutRemaining(0);
                     }
@@ -57,17 +51,17 @@ const LoginPage = () => {
 
     const incrementAttempts = () => {
         try {
-            const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
+            const stored = sessionStorage.getItem(RATE_LIMIT.STORAGE_KEY);
             let data = stored ? JSON.parse(stored) : { count: 0, lockedUntil: null };
             data.count += 1;
 
-            if (data.count >= MAX_LOGIN_ATTEMPTS) {
-                data.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+            if (data.count >= RATE_LIMIT.MAX_LOGIN_ATTEMPTS) {
+                data.lockedUntil = Date.now() + RATE_LIMIT.LOCKOUT_DURATION_MS;
                 setIsLocked(true);
-                setLockoutRemaining(LOCKOUT_DURATION_MS / 1000);
+                setLockoutRemaining(RATE_LIMIT.LOCKOUT_DURATION_MS / 1000);
             }
 
-            sessionStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(data));
+            sessionStorage.setItem(RATE_LIMIT.STORAGE_KEY, JSON.stringify(data));
         } catch {
             // If sessionStorage fails, continue
         }
@@ -75,7 +69,7 @@ const LoginPage = () => {
 
     const clearAttempts = () => {
         try {
-            sessionStorage.removeItem(RATE_LIMIT_KEY);
+            sessionStorage.removeItem(RATE_LIMIT.STORAGE_KEY);
             setIsLocked(false);
             setLockoutRemaining(0);
         } catch {
@@ -150,10 +144,11 @@ const LoginPage = () => {
 
                 <Card className="border-border/50 shadow-xl backdrop-blur-xl bg-card/80">
                     <CardContent className="pt-6">
-                        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+                        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off" aria-label="Login form">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none">Email</label>
+                                <label htmlFor="login-email" className="text-sm font-medium leading-none">Email</label>
                                 <Input
+                                    id="login-email"
                                     type="email"
                                     placeholder="your@university.edu"
                                     value={email}
@@ -164,9 +159,10 @@ const LoginPage = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none">Password</label>
+                                <label htmlFor="login-password" className="text-sm font-medium leading-none">Password</label>
                                 <div className="relative">
                                     <Input
+                                        id="login-password"
                                         type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
@@ -180,6 +176,7 @@ const LoginPage = () => {
                                         onClick={() => setShowPassword(!showPassword)}
                                         className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                         tabIndex={-1}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     >
                                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </button>
@@ -189,7 +186,7 @@ const LoginPage = () => {
                                 <LogIn className="mr-2 h-4 w-4" /> {isLocked ? `Locked (${lockoutRemaining}s)` : loading ? 'Signing in...' : 'Sign In'}
                             </Button>
                             {isLocked && (
-                                <p className="text-xs text-destructive text-center mt-2">
+                                <p className="text-xs text-destructive text-center mt-2" role="alert" aria-live="assertive">
                                     Too many failed attempts. Please wait {lockoutRemaining} seconds.
                                 </p>
                             )}

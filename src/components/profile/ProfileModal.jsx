@@ -1,18 +1,29 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserCircle, Mail, Phone, Building, Briefcase, GraduationCap } from 'lucide-react';
+import { UserCircle, Mail, Phone, Building, Briefcase, GraduationCap, Copy } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { securityUtils } from '@/lib/security';
 
 const ProfileModal = ({ isOpen, onClose }) => {
     const { profile } = useAuth();
+    const [avatarHash, setAvatarHash] = useState('default');
 
-    // We'll just display info for now, editing can be a future enhancement if backend supports it
-    // or we can add simple local state management if needed.
-    // For this task, ensuring it looks good on mobile is key.
+    useEffect(() => {
+        if (profile?.email) {
+            securityUtils.hashForAvatar(profile.email).then(setAvatarHash);
+        }
+    }, [profile?.email]);
+
+    const handleCopy = (text, label) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        toast.success(`${label} copied to clipboard`);
+    };
 
     if (!profile) return null;
 
@@ -21,11 +32,12 @@ const ProfileModal = ({ isOpen, onClose }) => {
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Profile Details</DialogTitle>
+                    <DialogDescription>Your account information and university details.</DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col items-center space-y-4 py-4">
                     <Avatar className="h-24 w-24 border-4 border-muted">
-                        <AvatarImage src={`https://avatar.vercel.sh/${profile.email}`} />
+                        <AvatarImage src={`https://avatar.vercel.sh/${avatarHash}`} />
                         <AvatarFallback><UserCircle className="h-20 w-20 text-muted-foreground" /></AvatarFallback>
                     </Avatar>
 
@@ -40,7 +52,12 @@ const ProfileModal = ({ isOpen, onClose }) => {
                         <Label htmlFor="email" className="flex items-center gap-2">
                             <Mail className="h-4 w-4" /> Email
                         </Label>
-                        <Input id="email" value={profile.email} readOnly className="bg-muted" />
+                        <div className="flex gap-2">
+                            <Input id="email" value={profile.email} readOnly className="bg-muted" />
+                            <Button variant="outline" size="icon" onClick={() => handleCopy(profile.email, 'Email')}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="grid gap-2">
@@ -56,7 +73,12 @@ const ProfileModal = ({ isOpen, onClose }) => {
                                 <Label htmlFor="register" className="flex items-center gap-2">
                                     <Briefcase className="h-4 w-4" /> Register Number
                                 </Label>
-                                <Input id="register" value={profile.register_number || 'N/A'} readOnly className="bg-muted" />
+                                <div className="flex gap-2">
+                                    <Input id="register" value={profile.register_number || 'N/A'} readOnly className="bg-muted" />
+                                    <Button variant="outline" size="icon" onClick={() => handleCopy(profile.register_number, 'Register Number')}>
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="grid gap-2">
