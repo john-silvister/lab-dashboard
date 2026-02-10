@@ -65,7 +65,7 @@ const MachinesPage = () => {
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
-                        <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="w-full sm:w-auto">
+                        <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="w-full sm:w-auto min-h-[44px]">
                             <Filter className="h-4 w-4 mr-2" /> Filters
                         </Button>
                     </div>
@@ -76,7 +76,7 @@ const MachinesPage = () => {
                         <div className="space-y-2 min-w-[200px]">
                             <label className="text-sm font-medium">Department</label>
                             <select
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 value={filters.department}
                                 onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
                             >

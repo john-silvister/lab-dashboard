@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { bookingService } from '@/services/bookingService';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { securityUtils } from '@/lib/security';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -111,8 +112,8 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
             toast.success('Booking request sent!');
             onSuccess();
         } catch (error) {
-            console.error('Booking error:', error);
-            toast.error(error.message || 'Failed to create booking. Please try again.');
+            securityUtils.secureLog('error', 'Booking error', error?.message);
+            toast.error('Failed to create booking. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -158,7 +159,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
                         className={`h-8 w-8 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all duration-300 relative`}
                     >
                         {step > s.id ? <Check className="h-4 w-4" /> : s.id}
-                        <span className="absolute -bottom-6 text-[10px] font-medium text-foreground whitespace-nowrap">{s.title}</span>
+                        <span className="absolute -bottom-6 text-[10px] font-medium text-foreground whitespace-nowrap hidden sm:block">{s.title}</span>
                     </motion.div>
                 ))}
             </div>

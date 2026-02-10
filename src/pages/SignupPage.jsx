@@ -142,8 +142,8 @@ const SignupPage = () => {
             toast.success('Account created! Please verify your email.');
             navigate('/login');
         } catch (error) {
-            securityUtils.secureLog('error', 'Signup form submission failed', error.message);
-            toast.error(error.message || 'An error occurred during signup');
+            securityUtils.secureLog('error', 'Signup form submission failed', error?.message);
+            toast.error('An error occurred during signup. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -224,7 +224,7 @@ const SignupPage = () => {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Department</label>
                                 <select
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                     value={department}
                                     onChange={(e) => setDepartment(e.target.value)}
                                     required
@@ -276,7 +276,7 @@ const SignupPage = () => {
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Year of Passout</label>
                                         <select
-                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                             value={yearOfPassout}
                                             onChange={(e) => setYearOfPassout(e.target.value)}
                                             required
@@ -297,8 +297,8 @@ const SignupPage = () => {
                                         type="button"
                                         onClick={() => setRole('student')}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${role === 'student'
-                                                ? 'border-primary bg-primary/5 text-primary'
-                                                : 'border-border hover:border-muted-foreground/50'
+                                            ? 'border-primary bg-primary/5 text-primary'
+                                            : 'border-border hover:border-muted-foreground/50'
                                             }`}
                                     >
                                         <GraduationCap className="h-6 w-6" />
@@ -308,8 +308,8 @@ const SignupPage = () => {
                                         type="button"
                                         onClick={() => setRole('faculty')}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${role === 'faculty'
-                                                ? 'border-primary bg-primary/5 text-primary'
-                                                : 'border-border hover:border-muted-foreground/50'
+                                            ? 'border-primary bg-primary/5 text-primary'
+                                            : 'border-border hover:border-muted-foreground/50'
                                             }`}
                                     >
                                         <BookOpen className="h-6 w-6" />

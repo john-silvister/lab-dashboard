@@ -5,7 +5,7 @@ import BookingForm from './BookingForm';
 const BookingModal = ({ machine, isOpen, onClose, onSuccess }) => {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Book {machine?.name}</DialogTitle>
                 </DialogHeader>

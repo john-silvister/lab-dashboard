@@ -18,8 +18,10 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
-        // Log error to console (in development) or error tracking service
-        console.error('ErrorBoundary caught an error:', error, errorInfo);
+        // Security: Only log errors in development to prevent stack trace leakage
+        if (import.meta.env.DEV) {
+            console.error('ErrorBoundary caught an error:', error, errorInfo);
+        }
         this.setState({ errorInfo });
 
         // In production, you might want to send this to an error tracking service
@@ -56,7 +58,7 @@ class ErrorBoundary extends React.Component {
 
                         {/* Show error details in development */}
                         {import.meta.env.DEV && this.state.error && (
-                            <details className="text-left bg-muted p-4 rounded-lg text-sm">
+                            <details className="text-left bg-muted p-4 rounded-lg text-sm max-h-[40vh] overflow-auto">
                                 <summary className="cursor-pointer font-medium text-foreground">
                                     Error details (dev only)
                                 </summary>

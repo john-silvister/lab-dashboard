@@ -11,7 +11,12 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="theme-color" content="#000000" />
 
-    <!-- Content Security Policy -->
+    <!--
+      Content Security Policy (fallback for dev/preview).
+      PRODUCTION: Serve CSP via HTTP headers from your hosting provider (Vercel/Nginx)
+      with 'unsafe-inline' and 'unsafe-eval' REMOVED from script-src.
+      Vite requires these directives during development for HMR.
+    -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.vercel.com;

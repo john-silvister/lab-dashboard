@@ -82,16 +82,16 @@ const BookingCard = ({ booking, onCancel, onViewDetails }) => {
                         </div>
 
                         <div className="flex flex-row md:flex-col gap-2 shrink-0">
-                            <Button variant="outline" size="sm" onClick={() => onViewDetails(booking)}>
+                            <Button variant="outline" size="sm" className="min-h-[44px]" onClick={() => onViewDetails(booking)}>
                                 View Details
                             </Button>
                             {canCancel && (
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onCancel(booking)}>
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive min-h-[44px]" onClick={() => onCancel(booking)}>
                                     Cancel
                                 </Button>
                             )}
                             {booking.status === 'rejected' && (
-                                <Button variant="outline" size="sm" asChild>
+                                <Button variant="outline" size="sm" className="min-h-[44px]" asChild>
                                     <Link to="/machines">Book Again</Link>
                                 </Button>
                             )}
@@ -206,7 +206,8 @@ const BookingsPage = () => {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="w-full overflow-x-auto pb-2">
+                    <div className="w-full overflow-x-auto pb-2 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent z-10 md:hidden" />
                         <TabsList className="w-full justify-start">
                             <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
                             <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>

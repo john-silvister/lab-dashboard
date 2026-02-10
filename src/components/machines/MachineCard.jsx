@@ -6,6 +6,17 @@ import { MapPin, Info } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 
+// Security: Validate image URLs before rendering to prevent tracking pixels or XSS
+const isSafeImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch {
+        return false;
+    }
+};
+
 const MachineCard = ({ machine, onBook, onDetails }) => {
     return (
         <motion.div
@@ -16,11 +27,12 @@ const MachineCard = ({ machine, onBook, onDetails }) => {
         >
             <Card className="overflow-hidden border-border/50 h-full flex flex-col group hover:shadow-xl transition-all duration-300">
                 <div className="aspect-video w-full bg-muted relative overflow-hidden">
-                    {machine.image_url ? (
+                    {isSafeImageUrl(machine.image_url) ? (
                         <img
                             src={machine.image_url}
                             alt={machine.name}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            referrerPolicy="no-referrer"
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-secondary/50">

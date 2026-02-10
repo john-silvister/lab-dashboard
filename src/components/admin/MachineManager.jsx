@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Edit, Trash, Microscope } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { securityUtils } from '@/lib/security';
 
 const MachineManager = () => {
     const [machines, setMachines] = useState([]);
@@ -104,14 +105,14 @@ const MachineManager = () => {
             setTimeout(() => fetchMachines(), 1000);
 
         } catch (error) {
-            console.error('Error saving machine:', error);
+            securityUtils.secureLog('error', 'Error saving machine', error?.message);
 
             // Revert optimistic update on error
             if (editingMachine) {
                 fetchMachines();
             }
 
-            toast.error(error.message || 'Failed to save machine');
+            toast.error('Failed to save machine. Please try again.');
         } finally {
             setSubmitting(false);
         }
@@ -132,12 +133,12 @@ const MachineManager = () => {
 
             toast.success('Machine deleted successfully');
         } catch (error) {
-            console.error('Error deleting machine:', error);
+            securityUtils.secureLog('error', 'Error deleting machine', error?.message);
 
             // Revert optimistic update on error
             setMachines(originalMachines);
 
-            toast.error(error.message || 'Failed to delete machine');
+            toast.error('Failed to delete machine. Please try again.');
         }
     };
 
@@ -198,7 +199,7 @@ const MachineManager = () => {
             </div>
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{editingMachine ? 'Edit Machine' : 'Add New Machine'}</DialogTitle>
                     </DialogHeader>

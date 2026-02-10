@@ -183,7 +183,7 @@ const FacultyDashboard = () => {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                                            <Button size="sm" variant="outline" onClick={() => setDetailBooking(booking)}>
+                                            <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => setDetailBooking(booking)}>
                                                 Details
                                             </Button>
                                             <Button

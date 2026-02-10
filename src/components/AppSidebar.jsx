@@ -43,7 +43,7 @@ export function AppSidebar() {
                 initial={false}
                 animate={{ width: collapsed ? 80 : 250 }}
                 className={cn(
-                    "relative z-30 hidden h-screen flex-col border-r bg-card transition-all duration-300 md:flex"
+                    "relative z-30 hidden h-screen flex-col border-r bg-card transition-all duration-300 md:flex overflow-visible"
                 )}
             >
                 <div className="flex h-16 items-center justify-between px-4">

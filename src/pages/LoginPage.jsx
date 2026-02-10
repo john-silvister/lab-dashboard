@@ -10,10 +10,12 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { securityUtils } from '@/lib/security';
 
-// Rate limiting constants
+// Security: Rate limiting key is obfuscated to make client-side bypass slightly harder.
+// NOTE: Client-side rate limiting is defense-in-depth only. Configure server-side
+// rate limiting via Supabase Auth settings or Edge Functions for real protection.
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-const RATE_LIMIT_KEY = 'lab_dashboard_login_attempts';
+const RATE_LIMIT_KEY = '_rl_auth_state';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -29,7 +31,7 @@ const LoginPage = () => {
     useEffect(() => {
         const checkRateLimit = () => {
             try {
-                const stored = localStorage.getItem(RATE_LIMIT_KEY);
+                const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
                 if (stored) {
                     const { lockedUntil } = JSON.parse(stored);
                     const now = Date.now();
@@ -38,13 +40,13 @@ const LoginPage = () => {
                         setLockoutRemaining(Math.ceil((lockedUntil - now) / 1000));
                     } else if (lockedUntil && now >= lockedUntil) {
                         // Lockout expired, reset
-                        localStorage.removeItem(RATE_LIMIT_KEY);
+                        sessionStorage.removeItem(RATE_LIMIT_KEY);
                         setIsLocked(false);
                         setLockoutRemaining(0);
                     }
                 }
             } catch {
-                // If localStorage fails, continue without rate limiting
+                // If sessionStorage fails, continue without rate limiting
             }
         };
 
@@ -55,7 +57,7 @@ const LoginPage = () => {
 
     const incrementAttempts = () => {
         try {
-            const stored = localStorage.getItem(RATE_LIMIT_KEY);
+            const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
             let data = stored ? JSON.parse(stored) : { count: 0, lockedUntil: null };
             data.count += 1;
 
@@ -65,19 +67,19 @@ const LoginPage = () => {
                 setLockoutRemaining(LOCKOUT_DURATION_MS / 1000);
             }
 
-            localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(data));
+            sessionStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(data));
         } catch {
-            // If localStorage fails, continue
+            // If sessionStorage fails, continue
         }
     };
 
     const clearAttempts = () => {
         try {
-            localStorage.removeItem(RATE_LIMIT_KEY);
+            sessionStorage.removeItem(RATE_LIMIT_KEY);
             setIsLocked(false);
             setLockoutRemaining(0);
         } catch {
-            // If localStorage fails, continue
+            // If sessionStorage fails, continue
         }
     };
 
@@ -117,7 +119,7 @@ const LoginPage = () => {
             navigate('/');
         } catch (error) {
             securityUtils.secureLog('warn', 'Login failed', { email: securityUtils.maskEmail(email) });
-            toast.error(error.message || 'Login failed');
+            toast.error('Invalid email or password. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -183,9 +185,14 @@ const LoginPage = () => {
                                     </button>
                                 </div>
                             </div>
-                            <Button type="submit" className="w-full font-bold" disabled={loading}>
-                                <LogIn className="mr-2 h-4 w-4" /> {loading ? 'Signing in...' : 'Sign In'}
+                            <Button type="submit" className="w-full font-bold" disabled={loading || isLocked}>
+                                <LogIn className="mr-2 h-4 w-4" /> {isLocked ? `Locked (${lockoutRemaining}s)` : loading ? 'Signing in...' : 'Sign In'}
                             </Button>
+                            {isLocked && (
+                                <p className="text-xs text-destructive text-center mt-2">
+                                    Too many failed attempts. Please wait {lockoutRemaining} seconds.
+                                </p>
+                            )}
                         </form>
                     </CardContent>
                     <CardFooter className="justify-center border-t p-4 bg-muted/20">

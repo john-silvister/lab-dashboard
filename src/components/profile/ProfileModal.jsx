@@ -18,7 +18,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Profile Details</DialogTitle>
                 </DialogHeader>

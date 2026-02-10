@@ -16,8 +16,8 @@ const MobileNav = ({ navItems, currentPath, onSignOut }) => {
             </Button>
 
             {open && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-                    <div className="fixed inset-y-0 left-0 z-50 h-full w-3/4 border-r bg-background p-6 shadow-lg sm:max-w-sm">
+                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setOpen(false)}>
+                    <div className="fixed inset-y-0 left-0 z-50 h-full w-3/4 border-r bg-background p-6 shadow-lg sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-2 font-bold text-xl text-primary">
                                 <Microscope className="h-6 w-6" />
@@ -76,7 +76,7 @@ const DashboardLayout = ({ children }) => {
         <div className="flex min-h-screen bg-background">
             <AppSidebar />
 
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col overflow-y-auto h-screen">
                 <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur md:hidden">
                     <MobileNav navItems={navItems} currentPath={location.pathname} onSignOut={signOut} />
                     <span className="font-semibold">AML Lab</span>

@@ -13,7 +13,8 @@ const AdminDashboard = () => {
                 </div>
 
                 <Tabs defaultValue="overview" className="space-y-4">
-                    <div className="w-full overflow-x-auto pb-2">
+                    <div className="w-full overflow-x-auto pb-2 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent z-10 md:hidden" />
                         <TabsList>
                             <TabsTrigger value="overview">Overview & Approvals</TabsTrigger>
                             <TabsTrigger value="machines">Manage Machines</TabsTrigger>

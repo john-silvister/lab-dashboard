@@ -7,9 +7,20 @@ import { MapPin, Info } from 'lucide-react';
 const MachineDetailsModal = ({ machine, isOpen, onClose, onBook }) => {
     if (!machine) return null;
 
+    // Security: Validate image URLs before rendering
+    const isSafeImageUrl = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+        } catch {
+            return false;
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <div className="flex items-center justify-between mr-4">
                         <DialogTitle>{machine.name}</DialogTitle>
@@ -20,9 +31,9 @@ const MachineDetailsModal = ({ machine, isOpen, onClose, onBook }) => {
                 </DialogHeader>
 
                 <div className="space-y-6">
-                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted">
-                        {machine.image_url ? (
-                            <img src={machine.image_url} alt={machine.name} className="w-full h-full object-cover" />
+                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted max-h-[30vh]">
+                        {isSafeImageUrl(machine.image_url) ? (
+                            <img src={machine.image_url} alt={machine.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center bg-secondary/50 text-muted-foreground">
                                 <Info className="h-16 w-16 opacity-20" />
