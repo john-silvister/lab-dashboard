@@ -8,7 +8,7 @@ const Dashboard = () => {
     const { profile, loading } = useAuth();
 
     if (loading) {
-        return <div className="flex h-screen items-center justify-center">Loading dashboard...</div>;
+        return <div className="flex min-h-[100dvh] items-center justify-center">Loading dashboard...</div>;
     }
 
     const isFaculty = profile?.role === 'faculty' || profile?.role === 'admin';

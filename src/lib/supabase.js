@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.error(errorMsg)
     // In production, show user-friendly error; in dev, throw to make it obvious
     if (import.meta.env.PROD) {
-        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center;padding:20px;"><div><h1 style="color:#dc2626;">Configuration Error</h1><p>The application is not properly configured. Please contact the administrator.</p></div></div>`
+        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:100dvh;height:100%;font-family:sans-serif;text-align:center;padding:20px;"><div><h1 style="color:#dc2626;">Configuration Error</h1><p>The application is not properly configured. Please contact the administrator.</p></div></div>`
     }
     throw new Error(errorMsg)
 }

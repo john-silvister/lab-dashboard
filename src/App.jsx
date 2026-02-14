@@ -12,13 +12,13 @@ import { AuthProvider, useAuth } from '@/hooks/useAuth'
 function ProtectedRoute({ children, role }) {
   const { user, profile, loading, profileLoading } = useAuth()
 
-  if (loading) return <div className="h-screen w-screen flex items-center justify-center p-4">Loading...</div>
+  if (loading) return <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
 
   // Wait for profile to load before checking role-based access
   if (role) {
     if (profileLoading) {
-      return <div className="h-screen w-screen flex items-center justify-center p-4">Loading...</div>
+      return <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">Loading...</div>
     }
     // Profile fetch completed but returned null (error/missing row) — deny access
     if (!profile) {
@@ -36,7 +36,7 @@ function ProtectedRoute({ children, role }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth()
 
-  if (loading) return <div className="h-screen w-screen flex items-center justify-center p-4">Loading...</div>
+  if (loading) return <div className="min-h-[100dvh] w-full flex items-center justify-center p-4">Loading...</div>
   if (user) return <Navigate to="/" replace />
 
   return children

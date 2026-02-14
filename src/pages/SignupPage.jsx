@@ -174,7 +174,7 @@ const SignupPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-start sm:items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4 py-8">
+        <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4 py-8">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
