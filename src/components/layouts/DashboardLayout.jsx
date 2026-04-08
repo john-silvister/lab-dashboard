@@ -73,13 +73,13 @@ const DashboardLayout = ({ children }) => {
     }
 
     return (
-        <div className="flex min-h-screen bg-background">
+        <div className="flex min-h-[100dvh] bg-background">
             <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground focus:top-0 focus:left-0">
                 Skip to main content
             </a>
             <AppSidebar />
 
-            <div className="flex-1 flex flex-col overflow-y-auto h-screen">
+            <div className="flex-1 flex min-h-[100dvh] flex-col overflow-y-auto">
                 <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur md:hidden">
                     <MobileNav navItems={navItems} currentPath={location.pathname} onSignOut={signOut} />
                     <span className="font-semibold">AML Lab</span>

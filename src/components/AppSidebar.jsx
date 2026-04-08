@@ -50,7 +50,7 @@ export function AppSidebar() {
                 initial={false}
                 animate={{ width: collapsed ? 80 : 250 }}
                 className={cn(
-                    "relative z-30 hidden h-screen flex-col border-r bg-card md:flex overflow-visible"
+                    "relative z-30 hidden min-h-[100dvh] flex-col border-r bg-card md:flex overflow-visible"
                 )}
                 role="navigation"
                 aria-label="Main navigation"
