@@ -9,7 +9,6 @@ import { Check, X, Clock, User, AlertCircle, CheckCircle2, Calendar } from 'luci
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { bookingService } from '@/services/bookingService';
-import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -23,8 +22,6 @@ const FacultyDashboard = () => {
     const [rejectLoading, setRejectLoading] = useState(false);
     const [detailBooking, setDetailBooking] = useState(null);
 
-    const refreshTimeoutRef = React.useRef(null);
-
     const fetchPending = useCallback(async () => {
         setLoading(true);
         const { data, error } = await bookingService.getPendingBookings();
@@ -33,26 +30,21 @@ const FacultyDashboard = () => {
     }, []);
 
     useEffect(() => {
-        fetchPending(); // eslint-disable-line react-hooks/set-state-in-effect
-        const channel = supabase
-            .channel('faculty-bookings')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-                // Debounce realtime updates to prevent race conditions
-                if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
-                refreshTimeoutRef.current = setTimeout(() => fetchPending(), 1000);
-            })
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                    setRealtimeError(true);
-                    toast.error('Realtime connection lost. Please refresh for latest updates.');
-                } else if (status === 'SUBSCRIBED') {
-                    setRealtimeError(false);
-                }
-            });
-        return () => {
-            supabase.removeChannel(channel);
-            if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
-        };
+        setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
+        const unsubscribe = bookingService.subscribeToPendingBookings(
+            (data) => {
+                setPendingBookings(data);
+                setRealtimeError(false);
+                setLoading(false);
+            },
+            () => {
+                setRealtimeError(true);
+                setLoading(false);
+                toast.error('Realtime connection lost. Please refresh for latest updates.');
+                fetchPending();
+            },
+        );
+        return unsubscribe;
     }, [fetchPending]);
 
     const handleApprove = async (bookingId) => {

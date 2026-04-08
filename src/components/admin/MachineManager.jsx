@@ -35,7 +35,7 @@ const MachineManager = () => {
     }, []);
 
     useEffect(() => {
-        fetchMachines();
+        fetchMachines(); // eslint-disable-line react-hooks/set-state-in-effect
     }, [fetchMachines]);
 
     const resetForm = () => {
@@ -106,7 +106,7 @@ const MachineManager = () => {
                 setTimeout(() => fetchMachines(), 1000);
                 return msg;
             },
-            error: (err) => {
+            error: () => {
                 // Revert optimistic update on error if needed (fetching does this)
                 if (editingMachine) fetchMachines();
                 return 'Failed to save machine. Please try again.';

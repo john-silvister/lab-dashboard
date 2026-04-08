@@ -3,7 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { cn } from "../../lib/utils"
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 
 const Dialog = DialogPrimitive.Root
 
@@ -24,7 +24,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className={cn(
-                "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+                "fixed inset-0 z-[70] bg-black/70 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
                 className
             )}
             {...props}
@@ -41,12 +41,12 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
             asChild
         >
             <motion.div
-                initial={{ opacity: 0, scale: 0.95, x: "-50%", y: "-48%" }}
-                animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
-                exit={{ opacity: 0, scale: 0.95, x: "-50%", y: "-48%" }}
+                initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 16 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
                 className={cn(
-                    "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 rounded-lg max-h-[85vh] overflow-y-auto",
+                    "fixed inset-0 z-[80] m-auto grid h-fit w-[calc(100%-2rem)] max-w-lg gap-4 rounded-lg border bg-background p-6 shadow-xl duration-200 max-h-[calc(100dvh-2rem)] overflow-y-auto",
                     className
                 )}
                 {...props}

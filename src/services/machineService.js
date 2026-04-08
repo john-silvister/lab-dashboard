@@ -1,5 +1,30 @@
-import { supabase } from '@/lib/supabase'
+import {
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    setDoc,
+    updateDoc,
+    where,
+} from 'firebase/firestore'
+import { firestore } from '@/lib/firebase'
 import { securityUtils } from '@/lib/security'
+
+const nowIso = () => new Date().toISOString()
+
+const toServiceError = (err, fallback = 'An unexpected error occurred') => ({
+    message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
+    code: err?.code,
+})
+
+const fromDoc = (docSnap) => ({
+    id: docSnap.id,
+    ...docSnap.data(),
+})
+
+const sortByName = (machines) => machines.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
 
 export const machineService = {
     /**
@@ -8,7 +33,6 @@ export const machineService = {
      */
     getMachines: async (filters = {}) => {
         try {
-            // Security: Validate and sanitize filters
             const sanitizedFilters = {}
 
             if (filters.department) {
@@ -23,35 +47,31 @@ export const machineService = {
                 sanitizedFilters.isAdmin = filters.isAdmin
             }
 
-            let query = supabase
-                .from('machines')
-                .select('*')
+            const constraints = []
 
-            // Security: Only show active machines to non-admin users
             if (!sanitizedFilters.isAdmin) {
-                query = query.eq('is_active', true)
+                constraints.push(where('is_active', '==', true))
             }
 
             if (sanitizedFilters.department) {
-                query = query.eq('department', sanitizedFilters.department)
+                constraints.push(where('department', '==', sanitizedFilters.department))
             }
 
             if (sanitizedFilters.location) {
-                query = query.eq('location', sanitizedFilters.location)
+                constraints.push(where('location', '==', sanitizedFilters.location))
             }
 
-            query = query.order('name')
+            const machinesQuery = constraints.length > 0
+                ? query(collection(firestore, 'machines'), ...constraints)
+                : collection(firestore, 'machines')
 
-            const { data, error } = await query
+            const snapshot = await getDocs(machinesQuery)
+            const data = sortByName(snapshot.docs.map(fromDoc))
 
-            if (error) {
-                securityUtils.secureLog('error', 'Failed to fetch machines', error.message)
-            }
-
-            return { data, error }
+            return { data, error: null }
         } catch (err) {
             securityUtils.secureLog('error', 'Unexpected error in getMachines', err.message)
-            return { data: null, error: { message: 'An unexpected error occurred' } }
+            return { data: null, error: toServiceError(err) }
         }
     },
 
@@ -61,25 +81,20 @@ export const machineService = {
      */
     getMachineDetails: async (machineId) => {
         try {
-            // Security: Validate machineId
-            if (!machineId || !securityUtils.validateUUID(machineId)) {
+            if (!securityUtils.validateFirestoreId(machineId)) {
                 return { data: null, error: { message: 'Invalid machine ID' } }
             }
 
-            const { data, error } = await supabase
-                .from('machines')
-                .select('*')
-                .eq('id', machineId)
-                .single()
+            const machineSnap = await getDoc(doc(firestore, 'machines', machineId))
 
-            if (error) {
-                securityUtils.secureLog('error', 'Failed to fetch machine details', error.message)
+            if (!machineSnap.exists()) {
+                return { data: null, error: { message: 'Machine not found' } }
             }
 
-            return { data, error }
+            return { data: fromDoc(machineSnap), error: null }
         } catch (err) {
             securityUtils.secureLog('error', 'Unexpected error in getMachineDetails', err.message)
-            return { data: null, error: { message: 'An unexpected error occurred' } }
+            return { data: null, error: toServiceError(err) }
         }
     },
 
@@ -89,7 +104,6 @@ export const machineService = {
      */
     createMachine: async (machineData) => {
         try {
-            // Security: Validate input
             if (!machineData || typeof machineData !== 'object') {
                 return { data: null, error: { message: 'Invalid machine data' } }
             }
@@ -99,46 +113,44 @@ export const machineService = {
                 description: typeof machineData.description === 'string' ? machineData.description.trim().substring(0, 1000) : '',
                 department: typeof machineData.department === 'string' ? machineData.department.trim().substring(0, 100) : '',
                 location: typeof machineData.location === 'string' ? machineData.location.trim().substring(0, 200) : '',
-                specifications: machineData.specifications, // JSON will be validated at DB level
+                specifications: machineData.specifications || {},
                 image_url: typeof machineData.image_url === 'string' ? machineData.image_url.trim().substring(0, 500) : '',
                 is_active: typeof machineData.is_active === 'boolean' ? machineData.is_active : true,
-                requires_training: typeof machineData.requires_training === 'boolean' ? machineData.requires_training : false
+                requires_training: typeof machineData.requires_training === 'boolean' ? machineData.requires_training : false,
             }
 
-            // Security: Validate required fields
             if (!sanitizedData.name) {
                 return { data: null, error: { message: 'Machine name is required' } }
             }
 
-            // Security: Validate image URL format if provided
             if (sanitizedData.image_url && !securityUtils.validateUrl(sanitizedData.image_url)) {
                 sanitizedData.image_url = ''
             }
 
-            // Security: Validate specifications JSON
             if (sanitizedData.specifications && typeof sanitizedData.specifications !== 'object') {
                 return { data: null, error: { message: 'Specifications must be a valid object' } }
             }
 
-            securityUtils.secureLog('info', 'Creating machine', {
-                name: sanitizedData.name,
-                department: sanitizedData.department
-            })
-
-            const { data, error } = await supabase
-                .from('machines')
-                .insert(sanitizedData)
-                .select()
-                .single()
-
-            if (error) {
-                securityUtils.secureLog('error', 'Machine creation failed', error.message)
+            const machineId = crypto.randomUUID()
+            const timestamp = nowIso()
+            const record = {
+                id: machineId,
+                ...sanitizedData,
+                created_at: timestamp,
+                updated_at: timestamp,
             }
 
-            return { data, error }
+            securityUtils.secureLog('info', 'Creating machine', {
+                name: record.name,
+                department: record.department,
+            })
+
+            await setDoc(doc(firestore, 'machines', machineId), record)
+
+            return { data: record, error: null }
         } catch (err) {
             securityUtils.secureLog('error', 'Unexpected error in createMachine', err.message)
-            return { data: null, error: { message: 'An unexpected error occurred' } }
+            return { data: null, error: toServiceError(err) }
         }
     },
 
@@ -149,12 +161,10 @@ export const machineService = {
      */
     updateMachine: async (machineId, updates) => {
         try {
-            // Security: Validate machineId
-            if (!machineId || !securityUtils.validateUUID(machineId)) {
+            if (!securityUtils.validateFirestoreId(machineId)) {
                 return { data: null, error: { message: 'Invalid machine ID' } }
             }
 
-            // Security: Validate updates
             if (!updates || typeof updates !== 'object') {
                 return { data: null, error: { message: 'Invalid update data' } }
             }
@@ -186,11 +196,7 @@ export const machineService = {
 
             if (updates.image_url !== undefined) {
                 const cleanedUrl = typeof updates.image_url === 'string' ? updates.image_url.trim().substring(0, 500) : ''
-                if (cleanedUrl && !securityUtils.validateUrl(cleanedUrl)) {
-                    sanitizedUpdates.image_url = ''
-                } else {
-                    sanitizedUpdates.image_url = cleanedUrl
-                }
+                sanitizedUpdates.image_url = cleanedUrl && !securityUtils.validateUrl(cleanedUrl) ? '' : cleanedUrl
             }
 
             if (typeof updates.is_active === 'boolean') {
@@ -201,31 +207,32 @@ export const machineService = {
                 sanitizedUpdates.requires_training = updates.requires_training
             }
 
-            // Security: Ensure at least one field is being updated
             if (Object.keys(sanitizedUpdates).length === 0) {
                 return { data: null, error: { message: 'No valid fields to update' } }
             }
 
-            securityUtils.secureLog('info', 'Updating machine', {
-                machine_id: machineId,
-                fields: Object.keys(sanitizedUpdates)
-            })
-
-            const { data, error } = await supabase
-                .from('machines')
-                .update(sanitizedUpdates)
-                .eq('id', machineId)
-                .select()
-                .single()
-
-            if (error) {
-                securityUtils.secureLog('error', 'Machine update failed', error.message)
+            const updatePayload = {
+                ...sanitizedUpdates,
+                updated_at: nowIso(),
             }
 
-            return { data, error }
+            securityUtils.secureLog('info', 'Updating machine', {
+                machine_id: machineId,
+                fields: Object.keys(sanitizedUpdates),
+            })
+
+            const machineRef = doc(firestore, 'machines', machineId)
+            await updateDoc(machineRef, updatePayload)
+            const updatedSnap = await getDoc(machineRef)
+
+            if (!updatedSnap.exists()) {
+                return { data: null, error: { message: 'Machine not found after update' } }
+            }
+
+            return { data: fromDoc(updatedSnap), error: null }
         } catch (err) {
             securityUtils.secureLog('error', 'Unexpected error in updateMachine', err.message)
-            return { data: null, error: { message: 'An unexpected error occurred' } }
+            return { data: null, error: toServiceError(err) }
         }
     },
 
@@ -235,26 +242,18 @@ export const machineService = {
      */
     deleteMachine: async (machineId) => {
         try {
-            // Security: Validate machineId
-            if (!machineId || !securityUtils.validateUUID(machineId)) {
-                return { data: null, error: { message: 'Invalid machine ID' } }
+            if (!securityUtils.validateFirestoreId(machineId)) {
+                return { error: { message: 'Invalid machine ID' } }
             }
 
             securityUtils.secureLog('info', 'Deleting machine', { machine_id: machineId })
 
-            const { error } = await supabase
-                .from('machines')
-                .delete()
-                .eq('id', machineId)
+            await deleteDoc(doc(firestore, 'machines', machineId))
 
-            if (error) {
-                securityUtils.secureLog('error', 'Machine deletion failed', error.message)
-            }
-
-            return { error }
+            return { error: null }
         } catch (err) {
             securityUtils.secureLog('error', 'Unexpected error in deleteMachine', err.message)
-            return { error: { message: 'An unexpected error occurred' } }
+            return { error: toServiceError(err) }
         }
-    }
+    },
 }

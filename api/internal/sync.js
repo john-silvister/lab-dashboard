@@ -2,6 +2,11 @@
 // Receives webhook payloads and syncs to external audit sheet
 import crypto from 'node:crypto';
 
+function toSafeString(value, maxLen = 500) {
+    if (value === null || value === undefined) return '';
+    return String(value).trim().slice(0, maxLen);
+}
+
 /**
  * Generate a signed JWT for Google service account authentication.
  * Uses Node.js built-in crypto — zero npm dependencies.
@@ -64,6 +69,12 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method not allowed' });
     }
 
+    // Basic content-type guard
+    const contentType = req.headers['content-type'] || '';
+    if (!String(contentType).includes('application/json')) {
+        return res.status(415).json({ message: 'Unsupported media type' });
+    }
+
     // Guard required environment variables
     const requiredEnvVars = ['GCP_CLIENT_EMAIL', 'GCP_PRIVATE_KEY', 'AUDIT_SHEET_ID', 'INTERNAL_WEBHOOK_SECRET'];
     for (const envVar of requiredEnvVars) {
@@ -72,18 +83,36 @@ export default async function handler(req, res) {
         }
     }
 
-    // Verify shared secret — Supabase sends this in the header
-    const secret = req.headers['x-webhook-secret'];
-    if (!secret || secret !== process.env.INTERNAL_WEBHOOK_SECRET) {
+    // Verify shared secret supplied by the internal Firebase/profile sync caller.
+    const headerSecret = req.headers['x-webhook-secret'];
+    const providedSecret = Array.isArray(headerSecret) ? headerSecret[0] : headerSecret;
+    const expectedSecret = process.env.INTERNAL_WEBHOOK_SECRET;
+
+    if (!providedSecret || !expectedSecret) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const providedBuffer = Buffer.from(String(providedSecret), 'utf8');
+    const expectedBuffer = Buffer.from(String(expectedSecret), 'utf8');
+    if (providedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
 
     try {
+        if (!req.body || typeof req.body !== 'object') {
+            return res.status(400).json({ message: 'Invalid payload' });
+        }
+
         const { type, table, record } = req.body;
 
         // Only process new profile inserts
         if (type !== 'INSERT' || table !== 'profiles' || !record) {
             return res.status(200).json({ skipped: true });
+        }
+
+        // Minimal shape validation for profile payload
+        if (typeof record !== 'object' || typeof record.id !== 'string' || typeof record.email !== 'string') {
+            return res.status(400).json({ message: 'Malformed record payload' });
         }
 
         const accessToken = await getAccessToken();
@@ -94,13 +123,13 @@ export default async function handler(req, res) {
         // Build the row: Timestamp, ID, Email, Name, Role, Dept, Register#, Phone, Event
         const row = [
             new Date().toISOString(),
-            record.id || '',
-            record.email || '',
-            record.full_name || '',
-            record.role || '',
-            record.department || '',
-            record.register_number || '',
-            record.phone || '',
+            toSafeString(record.id, 64),
+            toSafeString(record.email, 254),
+            toSafeString(record.full_name, 120),
+            toSafeString(record.role, 32),
+            toSafeString(record.department, 100),
+            toSafeString(record.register_number, 40),
+            toSafeString(record.phone, 40),
             'SIGNUP',
         ];
 

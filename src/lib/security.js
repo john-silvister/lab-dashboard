@@ -85,6 +85,17 @@ export const securityUtils = {
         return typeof uuid === 'string' && uuidRegex.test(uuid)
     },
 
+    // Validate Firestore document IDs / Firebase Auth UIDs
+    validateFirestoreId: (id) => {
+        return typeof id === 'string'
+            && id.length > 0
+            && id.length <= 128
+            && id !== '.'
+            && id !== '..'
+            && !id.includes('/')
+            && !/^__.*__$/.test(id)
+    },
+
     // Validate URL format
     validateUrl: (url) => {
         try {

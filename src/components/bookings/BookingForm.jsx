@@ -93,7 +93,7 @@ const BookingForm = ({ machine, onSuccess, onCancel }) => {
             // Sanitise purpose before sending to backend
             const sanitisedPurpose = securityUtils.sanitizeInput(formData.purpose);
 
-            const { data, error } = await bookingService.createBooking({
+            const { data: _data, error } = await bookingService.createBooking({
                 machine_id: machine.id,
                 student_id: user.id,
                 booking_date: formData.date,

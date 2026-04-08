@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { bookingService } from '@/services/bookingService';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Calendar, Clock, MapPin, FileText, X, RefreshCw, ArrowRight, AlertCircle } from 'lucide-react';
 import { format, formatDistanceToNow, isPast, isFuture } from 'date-fns';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
 import { Link } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion, AnimatePresence } from 'framer-motion';
@@ -110,7 +109,6 @@ const BookingsPage = () => {
     const [activeTab, setActiveTab] = useState('all');
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [realtimeError, setRealtimeError] = useState(false); // eslint-disable-line no-unused-vars -- set by realtime handler, shown via toast
-    const refreshTimeoutRef = useRef(null); // I9: Use ref instead of state to avoid memory leak
 
     const fetchBookings = useCallback(async () => {
         setLoading(true);
@@ -125,34 +123,22 @@ const BookingsPage = () => {
 
     useEffect(() => {
         if (user) {
-            fetchBookings(); // eslint-disable-line react-hooks/set-state-in-effect
-            const channel = supabase
-                .channel('my-bookings')
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'bookings',
-                    filter: `student_id=eq.${user.id}`,
-                }, () => {
-                    // Debounce real-time updates to prevent race conditions
-                    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
-                    refreshTimeoutRef.current = setTimeout(() => {
-                        fetchBookings();
-                    }, 1000); // 1 second debounce
-                })
-                .subscribe((status) => {
-                    // C6: Handle realtime subscription errors
-                    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                        setRealtimeError(true);
-                        toast.error('Realtime connection lost. Please refresh for latest updates.');
-                    } else if (status === 'SUBSCRIBED') {
-                        setRealtimeError(false);
-                    }
-                });
-            return () => {
-                supabase.removeChannel(channel);
-                if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
-            };
+            setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
+            const unsubscribe = bookingService.subscribeToMyBookings(
+                user.id,
+                (data) => {
+                    setBookings(data || []);
+                    setRealtimeError(false);
+                    setLoading(false);
+                },
+                () => {
+                    setRealtimeError(true);
+                    setLoading(false);
+                    toast.error('Realtime connection lost. Please refresh for latest updates.');
+                    fetchBookings();
+                },
+            );
+            return unsubscribe;
         }
     }, [user, fetchBookings]);
 

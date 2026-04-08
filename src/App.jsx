@@ -88,7 +88,10 @@ function App() {
 
           </Routes>
           <Toaster
-            position="bottom-right"
+            position="top-right"
+            offset={16}
+            mobileOffset={16}
+            expand
             closeButton
             richColors
             duration={4000}

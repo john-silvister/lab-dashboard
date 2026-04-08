@@ -1,9 +1,23 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, createElement } from 'react'
-import { supabase } from '@/lib/supabase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { firebaseAuth } from '@/lib/firebase'
 import { authService } from '@/services/authService'
 import { securityUtils } from '@/lib/security'
 
 const AuthContext = createContext(null)
+
+const toAuthUser = (firebaseUser) => {
+    if (!firebaseUser) return null
+
+    return {
+        id: firebaseUser.uid,
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        emailVerified: firebaseUser.emailVerified,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+    }
+}
 
 /**
  * AuthProvider - Provides shared auth state to the entire component tree.
@@ -44,57 +58,35 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         let mounted = true
 
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session }, error }) => {
+        const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
             if (!mounted) return
 
-            if (error) {
-                securityUtils.secureLog('error', 'Error getting session', error)
-                setLoading(false)
-                setAuthState('error')
-                return
-            }
+            securityUtils.secureLog('info', `Auth state change: ${firebaseUser ? 'SIGNED_IN' : 'SIGNED_OUT'}`)
 
-            setUser(session?.user ?? null)
-            setAuthState(session?.user ? 'authenticated' : 'unauthenticated')
+            const nextUser = toAuthUser(firebaseUser)
+            setUser(nextUser)
+            setAuthState(nextUser ? 'authenticated' : 'unauthenticated')
 
-            if (session?.user) {
-                fetchProfile(session.user.id).finally(() => {
+            if (nextUser) {
+                setProfile(null)
+                fetchProfile(nextUser.id).finally(() => {
                     if (mounted) setLoading(false)
                 })
             } else {
+                setProfile(null)
                 setLoading(false)
             }
-        }).catch(err => {
-            securityUtils.secureLog('error', 'Session retrieval failed', err.message)
+        }, (err) => {
+            securityUtils.secureLog('error', 'Auth state observer failed', err.message)
             if (mounted) {
                 setLoading(false)
                 setAuthState('error')
             }
         })
 
-        // Listen for auth changes - skip INITIAL_SESSION to avoid double-fetch
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (!mounted) return
-            if (event === 'INITIAL_SESSION') return
-
-            securityUtils.secureLog('info', `Auth state change: ${event}`)
-
-            setUser(session?.user ?? null)
-            setAuthState(session?.user ? 'authenticated' : 'unauthenticated')
-
-            if (session?.user) {
-                await fetchProfile(session.user.id)
-            } else {
-                setProfile(null)
-            }
-
-            setLoading(false)
-        })
-
         return () => {
             mounted = false
-            subscription.unsubscribe()
+            unsubscribe()
         }
     }, [fetchProfile])
 

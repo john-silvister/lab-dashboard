@@ -103,7 +103,16 @@ const LoginPage = () => {
 
             const { error } = await signIn(trimmedEmail, password);
             if (error) {
-                incrementAttempts();
+                const isServerLockout = typeof error.message === 'string' && error.message.toLowerCase().includes('too many failed attempts');
+                if (!isServerLockout) {
+                    incrementAttempts();
+                } else {
+                    setIsLocked(true);
+                    const match = error.message.match(/(\d+)\s*seconds?/i);
+                    if (match?.[1]) {
+                        setLockoutRemaining(Number(match[1]));
+                    }
+                }
                 throw error;
             }
 
@@ -113,7 +122,12 @@ const LoginPage = () => {
             navigate('/');
         } catch (error) {
             securityUtils.secureLog('warn', 'Login failed', { email: securityUtils.maskEmail(email) });
-            toast.error('Invalid email or password. Please try again.');
+
+            const message = typeof error?.message === 'string' && error.message.trim()
+                ? error.message
+                : 'Invalid email or password. Please try again.';
+
+            toast.error(message);
         } finally {
             setLoading(false);
         }

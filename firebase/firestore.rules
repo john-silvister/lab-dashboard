@@ -1,0 +1,242 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/profiles/$(uid);
+    }
+
+    function hasProfile(uid) {
+      return exists(profilePath(uid));
+    }
+
+    function currentRole() {
+      return signedIn() && hasProfile(request.auth.uid)
+        ? get(profilePath(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isFacultyOrAdmin() {
+      return currentRole() in ['faculty', 'admin'];
+    }
+
+    function isAdmin() {
+      return currentRole() == 'admin';
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isStudentEmail() {
+      return request.auth.token.email.matches('.*@btech[.]christuniversity[.]in$');
+    }
+
+    function isFacultyEmail() {
+      return request.auth.token.email.matches('.*@christuniversity[.]in$')
+        && !isStudentEmail();
+    }
+
+    function validPublicProfileRole() {
+      return (request.resource.data.role == 'student' && isStudentEmail())
+        || (request.resource.data.role == 'faculty' && isFacultyEmail());
+    }
+
+    function validProfileShape() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'email',
+        'full_name',
+        'role',
+        'department',
+        'phone',
+        'register_number',
+        'specialization',
+        'year_of_passout',
+        'created_at',
+        'updated_at'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.email is string
+      && request.resource.data.full_name is string
+      && request.resource.data.role in ['student', 'faculty', 'admin']
+      && request.resource.data.department is string;
+    }
+
+    function validMachineShape() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'name',
+        'description',
+        'department',
+        'location',
+        'specifications',
+        'image_url',
+        'is_active',
+        'requires_training',
+        'created_at',
+        'updated_at'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.name is string
+      && request.resource.data.is_active is bool
+      && request.resource.data.requires_training is bool;
+    }
+
+    function validBookingShape() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'machine_id',
+        'student_id',
+        'booking_date',
+        'start_time',
+        'end_time',
+        'purpose',
+        'status',
+        'faculty_id',
+        'faculty_comments',
+        'created_at',
+        'updated_at'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.machine_id is string
+      && request.resource.data.student_id is string
+      && request.resource.data.booking_date is string
+      && request.resource.data.start_time is string
+      && request.resource.data.end_time is string
+      && request.resource.data.purpose is string
+      && request.resource.data.status in ['pending', 'approved', 'rejected', 'cancelled'];
+    }
+
+    function ownerCancelOnly() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isOwner(resource.data.student_id)
+        && resource.data.status in ['pending', 'approved']
+        && request.resource.data.status == 'cancelled'
+        && changed.hasOnly(['status', 'updated_at']);
+    }
+
+    function validSlotShape() {
+      return request.resource.data.keys().hasOnly([
+        'id',
+        'booking_id',
+        'machine_id',
+        'booking_date',
+        'minute',
+        'student_id',
+        'status',
+        'created_at',
+        'updated_at'
+      ])
+      && request.resource.data.id is string
+      && request.resource.data.booking_id is string
+      && request.resource.data.machine_id is string
+      && request.resource.data.booking_date is string
+      && request.resource.data.minute is int
+      && request.resource.data.student_id is string
+      && request.resource.data.status in ['pending', 'approved'];
+    }
+
+    match /profiles/{profileId} {
+      allow get: if isOwner(profileId) || isFacultyOrAdmin();
+      allow list: if isFacultyOrAdmin();
+      allow create: if isOwner(profileId)
+        && validProfileShape()
+        && request.resource.data.id == profileId
+        && request.resource.data.email == request.auth.token.email
+        && validPublicProfileRole();
+      allow update: if (isOwner(profileId)
+        && validProfileShape()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'full_name',
+          'department',
+          'phone',
+          'register_number',
+          'specialization',
+          'year_of_passout',
+          'updated_at'
+        ])) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /machines/{machineId} {
+      allow read: if signedIn() && (resource.data.is_active == true || isFacultyOrAdmin());
+      allow create: if isFacultyOrAdmin()
+        && validMachineShape()
+        && request.resource.data.id == machineId;
+      allow update: if isFacultyOrAdmin()
+        && validMachineShape()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.created_at == resource.data.created_at;
+      allow delete: if isFacultyOrAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if signedIn() && (resource.data.student_id == request.auth.uid || isFacultyOrAdmin());
+      allow create: if signedIn()
+        && validBookingShape()
+        && request.resource.data.id == bookingId
+        && request.resource.data.student_id == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.faculty_id == null;
+      allow update: if (isFacultyOrAdmin() && validBookingShape())
+        || (validBookingShape() && ownerCancelOnly());
+      allow delete: if false;
+    }
+
+    match /booking_slots/{slotId} {
+      allow get: if signedIn();
+      allow list: if isFacultyOrAdmin();
+      allow create: if signedIn()
+        && validSlotShape()
+        && request.resource.data.id == slotId
+        && request.resource.data.student_id == request.auth.uid;
+      allow update: if isFacultyOrAdmin() && validSlotShape();
+      allow delete: if signedIn()
+        && (resource.data.student_id == request.auth.uid || isFacultyOrAdmin());
+    }
+
+    match /login_attempts/{attemptId} {
+      allow get: if attemptId.matches('^[0-9a-f]{64}$');
+      allow list: if false;
+      allow create, update: if attemptId.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'email_hash',
+          'count',
+          'locked_until_ms',
+          'last_failed_at_ms',
+          'updated_at'
+        ])
+        && request.resource.data.id == attemptId
+        && request.resource.data.email_hash == attemptId
+        && request.resource.data.count is int
+        && request.resource.data.count >= 1
+        && request.resource.data.count <= 5
+        && request.resource.data.locked_until_ms is int
+        && request.resource.data.last_failed_at_ms is int;
+      allow delete: if signedIn() && attemptId.matches('^[0-9a-f]{64}$');
+    }
+
+    match /booking_rules/{ruleId} {
+      allow read: if signedIn();
+      allow write: if isFacultyOrAdmin();
+    }
+
+    match /audit_log/{logId} {
+      allow read: if isFacultyOrAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

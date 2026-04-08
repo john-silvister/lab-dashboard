@@ -1,16 +1,164 @@
-import { supabase } from '@/lib/supabase'
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+} from 'firebase/auth'
+import {
+  deleteDoc,
+  doc,
+  getDoc,
+  runTransaction,
+  setDoc,
+} from 'firebase/firestore'
+import { firebaseAuth, firestore } from '@/lib/firebase'
 import { securityUtils } from '@/lib/security'
+import { RATE_LIMIT } from '@/lib/constants'
+
+const nowIso = () => new Date().toISOString()
+
+const toServiceError = (err, fallback = 'An unexpected error occurred') => ({
+  message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
+  code: err?.code,
+})
+
+const mapAuthError = (err) => {
+  const invalidCredentialCodes = new Set([
+    'auth/invalid-credential',
+    'auth/invalid-email',
+    'auth/user-not-found',
+    'auth/wrong-password',
+  ])
+
+  if (invalidCredentialCodes.has(err?.code)) {
+    return { message: 'Invalid email or password. Please try again.', code: err.code }
+  }
+
+  if (err?.code === 'auth/email-already-in-use') {
+    return { message: 'An account already exists for this email.', code: err.code }
+  }
+
+  if (err?.code === 'auth/weak-password') {
+    return { message: 'Password does not meet security requirements.', code: err.code }
+  }
+
+  if (err?.code === 'auth/too-many-requests') {
+    return { message: 'Too many attempts. Please wait a few minutes before trying again.', code: err.code }
+  }
+
+  return toServiceError(err)
+}
+
+const toAuthUser = (user) => {
+  if (!user) return null
+
+  return {
+    id: user.uid,
+    uid: user.uid,
+    email: user.email,
+    emailVerified: user.emailVerified,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+  }
+}
+
+const getLoginAttemptId = async (email) => securityUtils.hashForAvatar(email)
+
+const getLoginAttemptRef = async (email) => {
+  const attemptId = await getLoginAttemptId(email)
+  return doc(firestore, 'login_attempts', attemptId)
+}
+
+const getLockoutState = async (email) => {
+  const attemptRef = await getLoginAttemptRef(email)
+  const attemptSnap = await getDoc(attemptRef)
+
+  if (!attemptSnap.exists()) {
+    return { is_locked: false, remaining_seconds: 0 }
+  }
+
+  const attempt = attemptSnap.data()
+  const lockedUntilMs = Number(attempt.locked_until_ms || 0)
+  const remainingMs = lockedUntilMs - Date.now()
+
+  return {
+    is_locked: remainingMs > 0,
+    remaining_seconds: Math.ceil(Math.max(0, remainingMs) / 1000),
+  }
+}
+
+const recordLoginFailure = async (email) => {
+  const attemptRef = await getLoginAttemptRef(email)
+  const emailHash = attemptRef.id
+  const nowMs = Date.now()
+  const resetWindowMs = RATE_LIMIT.LOCKOUT_DURATION_MS
+
+  await runTransaction(firestore, async (transaction) => {
+    const attemptSnap = await transaction.get(attemptRef)
+    const existing = attemptSnap.exists() ? attemptSnap.data() : {}
+    const lastFailureMs = Number(existing.last_failed_at_ms || 0)
+    const lockedUntilMs = Number(existing.locked_until_ms || 0)
+    const lockExpired = lockedUntilMs > 0 && lockedUntilMs <= nowMs
+    const shouldResetCount = !lastFailureMs || nowMs - lastFailureMs > resetWindowMs || lockExpired
+    const previousCount = shouldResetCount ? 0 : Number(existing.count || 0)
+    const count = Math.min(previousCount + 1, RATE_LIMIT.MAX_LOGIN_ATTEMPTS)
+    const nextLockedUntilMs = count >= RATE_LIMIT.MAX_LOGIN_ATTEMPTS
+      ? nowMs + RATE_LIMIT.LOCKOUT_DURATION_MS
+      : 0
+
+    transaction.set(attemptRef, {
+      id: emailHash,
+      email_hash: emailHash,
+      count,
+      locked_until_ms: nextLockedUntilMs,
+      last_failed_at_ms: nowMs,
+      updated_at: nowIso(),
+    }, { merge: true })
+  })
+}
+
+const clearLoginFailures = async (email) => {
+  const attemptRef = await getLoginAttemptRef(email)
+  await deleteDoc(attemptRef)
+}
+
+const buildProfile = (user, metadata, email) => {
+  const requestedRole = metadata?.role === 'faculty' ? 'faculty' : 'student'
+  const timestamp = nowIso()
+
+  const profile = {
+    id: user.uid,
+    email,
+    full_name: typeof metadata?.full_name === 'string' ? metadata.full_name.trim().substring(0, 100) : '',
+    role: requestedRole,
+    department: typeof metadata?.department === 'string' ? metadata.department.trim().substring(0, 100) : '',
+    created_at: timestamp,
+    updated_at: timestamp,
+  }
+
+  if (requestedRole === 'student') {
+    profile.phone = typeof metadata?.phone === 'string' ? metadata.phone.trim().substring(0, 40) : ''
+    profile.register_number = typeof metadata?.register_number === 'string' ? metadata.register_number.trim().substring(0, 40) : ''
+    profile.specialization = typeof metadata?.specialization === 'string' ? metadata.specialization.trim().substring(0, 100) : ''
+    profile.year_of_passout = typeof metadata?.year_of_passout === 'string' ? metadata.year_of_passout.trim().substring(0, 10) : ''
+  }
+
+  return profile
+}
 
 export const authService = {
   /**
-   * Sign up a new user with security validation
+   * Sign up a new user with security validation.
    * @param {string} email
    * @param {string} password
-   * @param {object} metadata - { full_name, department, etc. }
+   * @param {object} metadata - { full_name, department, role, etc. }
    */
   signUp: async (email, password, metadata) => {
+    let createdUser = null
+
     try {
-      // Security: Validate inputs
       if (!securityUtils.validateEmail(email)) {
         return { data: null, error: { message: 'Invalid email format' } }
       }
@@ -19,38 +167,62 @@ export const authService = {
         return { data: null, error: { message: 'Password does not meet security requirements' } }
       }
 
-      // Security: Sanitize metadata
+      const normalizedEmail = email.toLowerCase().trim()
       const sanitizedMetadata = metadata ? securityUtils.sanitizeObject(metadata) : {}
+      const requestedRole = sanitizedMetadata.role === 'faculty' ? 'faculty' : 'student'
+      const isStudentEmail = normalizedEmail.endsWith('@btech.christuniversity.in')
+      const isFacultyEmail = normalizedEmail.endsWith('@christuniversity.in') && !isStudentEmail
 
-      const { data, error } = await supabase.auth.signUp({
-        email: email.toLowerCase().trim(),
-        password,
-        options: {
-          data: sanitizedMetadata,
-        },
-      })
-
-      if (error) {
-        securityUtils.secureLog('error', 'Signup failed', error.message)
-      } else {
-        securityUtils.secureLog('info', 'User signup successful', { email: securityUtils.maskEmail(email) })
+      if (requestedRole === 'student' && !isStudentEmail) {
+        return { data: null, error: { message: 'Students must use @btech.christuniversity.in email addresses' } }
       }
 
-      return { data, error }
+      if (requestedRole === 'faculty' && !isFacultyEmail) {
+        return { data: null, error: { message: 'Faculty must use @christuniversity.in email addresses' } }
+      }
+
+      const { user } = await createUserWithEmailAndPassword(firebaseAuth, normalizedEmail, password)
+      createdUser = user
+
+      const profile = buildProfile(user, sanitizedMetadata, normalizedEmail)
+      await setDoc(doc(firestore, 'profiles', user.uid), profile)
+
+      if (profile.full_name) {
+        await updateProfile(user, { displayName: profile.full_name })
+      }
+
+      await sendEmailVerification(user).catch((err) => {
+        securityUtils.secureLog('warn', 'Email verification could not be sent', err.message)
+      })
+
+      await firebaseSignOut(firebaseAuth)
+
+      securityUtils.secureLog('info', 'User signup successful', { email: securityUtils.maskEmail(normalizedEmail) })
+      return { data: { user: toAuthUser(user), profile }, error: null }
     } catch (err) {
-      securityUtils.secureLog('error', 'Unexpected error during signup', err.message)
-      return { data: null, error: { message: 'An unexpected error occurred' } }
+      securityUtils.secureLog('error', 'Signup failed', err.message)
+
+      if (createdUser) {
+        await deleteDoc(doc(firestore, 'profiles', createdUser.uid)).catch((deleteError) => {
+          securityUtils.secureLog('warn', 'Failed to roll back Firestore profile after signup error', deleteError.message)
+        })
+
+        await deleteUser(createdUser).catch((deleteError) => {
+          securityUtils.secureLog('warn', 'Failed to roll back Firebase Auth user after signup error', deleteError.message)
+        })
+      }
+
+      return { data: null, error: mapAuthError(err) }
     }
   },
 
   /**
-   * Sign in an existing user with security validation
+   * Sign in an existing user with Firebase Auth and Firestore-backed lockout.
    * @param {string} email
    * @param {string} password
    */
   signIn: async (email, password) => {
     try {
-      // Security: Validate inputs
       if (!securityUtils.validateEmail(email)) {
         return { data: null, error: { message: 'Invalid email format' } }
       }
@@ -59,94 +231,92 @@ export const authService = {
         return { data: null, error: { message: 'Invalid password' } }
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password,
-      })
+      const normalizedEmail = email.toLowerCase().trim()
 
-      if (error) {
-        securityUtils.secureLog('warn', 'Signin failed', { email: securityUtils.maskEmail(email), reason: error.message })
-      } else {
-        securityUtils.secureLog('info', 'User signin successful', { email: securityUtils.maskEmail(email) })
+      try {
+        const lockInfo = await getLockoutState(normalizedEmail)
+        if (lockInfo.is_locked) {
+          return {
+            data: null,
+            error: { message: `Too many failed attempts. Try again in ${lockInfo.remaining_seconds} seconds.` },
+          }
+        }
+      } catch (lockError) {
+        securityUtils.secureLog('warn', 'Lockout check failed, continuing with sign-in', lockError.message)
       }
 
-      return { data, error }
+      const { user } = await signInWithEmailAndPassword(firebaseAuth, normalizedEmail, password)
+
+      clearLoginFailures(normalizedEmail).catch((clearError) => {
+        securityUtils.secureLog('warn', 'Failed to clear login failures', clearError.message)
+      })
+
+      securityUtils.secureLog('info', 'User signin successful', { email: securityUtils.maskEmail(normalizedEmail) })
+      return { data: { user: toAuthUser(user) }, error: null }
     } catch (err) {
-      securityUtils.secureLog('error', 'Unexpected error during signin', err.message)
-      return { data: null, error: { message: 'An unexpected error occurred' } }
+      const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : ''
+      securityUtils.secureLog('warn', 'Signin failed', { email: securityUtils.maskEmail(normalizedEmail), reason: err.message })
+
+      if (normalizedEmail) {
+        recordLoginFailure(normalizedEmail).catch((recordError) => {
+          securityUtils.secureLog('warn', 'Failed to record login failure', recordError.message)
+        })
+      }
+
+      return { data: null, error: mapAuthError(err) }
     }
   },
 
   /**
-   * Sign out the current user
+   * Sign out the current user.
    */
   signOut: async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-
-      if (error) {
-        securityUtils.secureLog('error', 'Signout failed', error.message)
-      } else {
-        securityUtils.secureLog('info', 'User signed out successfully')
-      }
-
-      return { error }
+      await firebaseSignOut(firebaseAuth)
+      securityUtils.secureLog('info', 'User signed out successfully')
+      return { error: null }
     } catch (err) {
-      securityUtils.secureLog('error', 'Unexpected error during signout', err.message)
-      return { error: { message: 'An unexpected error occurred' } }
+      securityUtils.secureLog('error', 'Signout failed', err.message)
+      return { error: toServiceError(err) }
     }
   },
 
   /**
-   * Get the current user with security validation
+   * Get the current Firebase Auth user in the same shape the UI expects.
    */
   getCurrentUser: async () => {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser()
-
-      if (error) {
-        securityUtils.secureLog('error', 'Error getting current user', error.message)
-        return null
-      }
-
-      return user
-    } catch (err) {
-      securityUtils.secureLog('error', 'Unexpected error getting current user', err.message)
-      return null
-    }
+    return toAuthUser(firebaseAuth.currentUser)
   },
 
   /**
-   * Get user profile by ID with security validation
+   * Get user profile by ID with security validation.
    * @param {string} userId
    */
   getProfile: async (userId) => {
     try {
-      // Security: Validate userId format
-      if (!userId || typeof userId !== 'string' || userId.length !== 36) {
+      if (!securityUtils.validateFirestoreId(userId)) {
         return { data: null, error: { message: 'Invalid user ID' } }
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      const profileSnap = await getDoc(doc(firestore, 'profiles', userId))
 
-      if (error) {
-        securityUtils.secureLog('error', 'Error fetching profile', error.message)
-      } else if (data) {
-        // Security: Validate profile data structure
-        if (!securityUtils.validateApiResponse(data, ['id', 'email'])) {
-          securityUtils.secureLog('warn', 'Invalid profile data structure')
-          return { data: null, error: { message: 'Invalid profile data' } }
-        }
+      if (!profileSnap.exists()) {
+        return { data: null, error: { message: 'Profile not found' } }
       }
 
-      return { data, error }
+      const data = { id: profileSnap.id, ...profileSnap.data() }
+
+      if (!securityUtils.validateApiResponse(data, ['id', 'email'])) {
+        securityUtils.secureLog('warn', 'Invalid profile data structure')
+        return { data: null, error: { message: 'Invalid profile data' } }
+      }
+
+      return { data, error: null }
     } catch (err) {
       securityUtils.secureLog('error', 'Unexpected error fetching profile', err.message)
-      return { data: null, error: { message: 'An unexpected error occurred' } }
+      return { data: null, error: toServiceError(err) }
     }
   },
 }
+
+export { toAuthUser }
