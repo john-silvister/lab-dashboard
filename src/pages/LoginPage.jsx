@@ -21,7 +21,7 @@ const LoginPage = () => {
     const { signIn } = useAuth();
     const navigate = useNavigate();
 
-    // Check rate limit status on mount and periodically
+    // Client-side throttle for repeated mistakes. Firebase Auth remains authoritative.
     useEffect(() => {
         const checkRateLimit = () => {
             try {
@@ -103,16 +103,7 @@ const LoginPage = () => {
 
             const { error } = await signIn(trimmedEmail, password);
             if (error) {
-                const isServerLockout = typeof error.message === 'string' && error.message.toLowerCase().includes('too many failed attempts');
-                if (!isServerLockout) {
-                    incrementAttempts();
-                } else {
-                    setIsLocked(true);
-                    const match = error.message.match(/(\d+)\s*seconds?/i);
-                    if (match?.[1]) {
-                        setLockoutRemaining(Number(match[1]));
-                    }
-                }
+                incrementAttempts();
                 throw error;
             }
 

@@ -2,8 +2,6 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { cn } from "../../lib/utils"
-// eslint-disable-next-line no-unused-vars -- motion.div used in JSX
-import { motion } from "framer-motion"
 
 const Dialog = DialogPrimitive.Root
 
@@ -16,20 +14,12 @@ const DialogClose = DialogPrimitive.Close
 const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
     <DialogPrimitive.Overlay
         ref={ref}
-        asChild
-    >
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className={cn(
-                "fixed inset-0 z-[70] bg-black/70 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-                className
-            )}
-            {...props}
-        />
-    </DialogPrimitive.Overlay>
+        className={cn(
+            "fixed inset-0 z-[70] bg-black/70 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            className
+        )}
+        {...props}
+    />
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
@@ -38,26 +28,18 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
         <DialogOverlay />
         <DialogPrimitive.Content
             ref={ref}
-            asChild
+            className={cn(
+                "fixed left-1/2 top-1/2 z-[80] grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+                className
+            )}
+            {...props}
         >
-            <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 16 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 16 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className={cn(
-                    "fixed inset-0 z-[80] m-auto grid h-fit w-[calc(100%-2rem)] max-w-lg gap-4 rounded-lg border bg-background p-6 shadow-xl duration-200 max-h-[calc(100dvh-2rem)] overflow-y-auto",
-                    className
-                )}
-                {...props}
-            >
-                {children}
-                <DialogPrimitive.Close
-                    className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close</span>
-                </DialogPrimitive.Close>
-            </motion.div>
+            {children}
+            <DialogPrimitive.Close
+                className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
         </DialogPrimitive.Content>
     </DialogPortal>
 ))

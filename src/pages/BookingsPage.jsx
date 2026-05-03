@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion, AnimatePresence } from 'framer-motion';
+import { parseDateOnlyToLocalDate } from '@/lib/bookingValidation';
 
 const statusConfig = {
     pending: { label: 'Pending', variant: 'warning', icon: Clock },
@@ -27,6 +28,7 @@ const BookingCard = ({ booking, onCancel, onViewDetails }) => {
     const bookingStart = new Date(`${booking.booking_date}T${booking.start_time}`);
     const isUpcoming = isFuture(bookingStart);
     const canCancel = ['pending', 'approved'].includes(booking.status) && isUpcoming;
+    const bookingDate = parseDateOnlyToLocalDate(booking.booking_date);
 
     return (
         <motion.div
@@ -47,7 +49,7 @@ const BookingCard = ({ booking, onCancel, onViewDetails }) => {
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                     <Calendar className="h-3.5 w-3.5" />
-                                    {format(new Date(booking.booking_date), 'MMM d, yyyy')}
+                                    {bookingDate ? format(bookingDate, 'MMM d, yyyy') : 'Invalid date'}
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-3.5 w-3.5" />
@@ -170,6 +172,7 @@ const BookingsPage = () => {
         rejected: bookings.filter(b => b.status === 'rejected').length,
         past: bookings.filter(b => isPast(new Date(`${b.booking_date}T${b.end_time}`)) && b.status !== 'cancelled').length,
     };
+    const selectedBookingDate = selectedBooking ? parseDateOnlyToLocalDate(selectedBooking.booking_date) : null;
 
     return (
         <DashboardLayout>
@@ -259,7 +262,9 @@ const BookingsPage = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-muted-foreground block">Date</span>
-                                    <span className="font-medium">{format(new Date(selectedBooking.booking_date), 'MMMM d, yyyy')}</span>
+                                    <span className="font-medium">
+                                        {selectedBookingDate ? format(selectedBookingDate, 'MMMM d, yyyy') : 'Invalid date'}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="text-muted-foreground block">Time</span>

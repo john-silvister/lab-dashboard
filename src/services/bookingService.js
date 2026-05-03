@@ -10,15 +10,26 @@ import {
 } from 'firebase/firestore'
 import { firebaseAuth, firestore } from '@/lib/firebase'
 import { securityUtils } from '@/lib/security'
+import { parseTimeToMinute, validateBookingWindow } from '@/lib/bookingValidation'
 
 const ACTIVE_BOOKING_STATUSES = new Set(['pending', 'approved'])
 
 const nowIso = () => new Date().toISOString()
 
-const toServiceError = (err, fallback = 'An unexpected error occurred') => ({
-    message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
-    code: err?.code,
-})
+const toServiceError = (err, fallback = 'An unexpected error occurred') => {
+    if (err?.code === 'permission-denied') {
+        return { message: 'You do not have permission to perform this action.', code: err.code }
+    }
+
+    if (['failed-precondition', 'unavailable', 'internal', 'resource-exhausted'].includes(err?.code)) {
+        return { message: 'The service is temporarily unavailable. Please try again later.', code: err.code }
+    }
+
+    return {
+        message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
+        code: err?.code,
+    }
+}
 
 const fromDoc = (docSnap) => ({
     id: docSnap.id,
@@ -34,13 +45,6 @@ const sortBookingsByDate = (bookings) => bookings.sort((a, b) => {
 const sortBookingsByCreatedDesc = (bookings) => bookings.sort((a, b) => {
     return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
 })
-
-const parseTimeToMinute = (time) => {
-    if (typeof time !== 'string') return Number.NaN
-    const [hours, minutes] = time.split(':').map(Number)
-    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return Number.NaN
-    return hours * 60 + minutes
-}
 
 const formatMinute = (minute) => {
     const hours = Math.floor(minute / 60).toString().padStart(2, '0')
@@ -140,28 +144,9 @@ export const bookingService = {
                 return { data: null, error: { message: 'Invalid ID format' } }
             }
 
-            const bookingDate = new Date(sanitizedData.booking_date)
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-
-            if (bookingDate < today) {
-                return { data: null, error: { message: 'Cannot book for past dates' } }
-            }
-
-            const startMinute = parseTimeToMinute(sanitizedData.start_time)
-            const endMinute = parseTimeToMinute(sanitizedData.end_time)
-
-            if (!Number.isFinite(startMinute) || !Number.isFinite(endMinute)) {
-                return { data: null, error: { message: 'Invalid booking time' } }
-            }
-
-            if (startMinute >= endMinute) {
-                return { data: null, error: { message: 'End time must be after start time' } }
-            }
-
-            const durationHours = (endMinute - startMinute) / 60
-            if (durationHours > 8) {
-                return { data: null, error: { message: 'Booking duration cannot exceed 8 hours' } }
+            const windowValidation = validateBookingWindow(sanitizedData)
+            if (!windowValidation.valid) {
+                return { data: null, error: { message: windowValidation.message } }
             }
 
             const bookingId = crypto.randomUUID()

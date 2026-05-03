@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     const requiredEnvVars = ['GCP_CLIENT_EMAIL', 'GCP_PRIVATE_KEY', 'AUDIT_SHEET_ID', 'INTERNAL_WEBHOOK_SECRET'];
     for (const envVar of requiredEnvVars) {
         if (!process.env[envVar]) {
-            return res.status(500).json({ message: `Server misconfigured: missing ${envVar}` });
+            return res.status(500).json({ message: 'Server misconfigured' });
         }
     }
 

@@ -19,9 +19,9 @@ if (missingFirebaseConfig) {
   createRoot(rootElement).render(
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'system-ui, sans-serif', textAlign: 'center' }}>
       <div>
-        <h1 style={{ color: '#dc2626', marginBottom: '12px' }}>Configuration Error</h1>
+        <h1 style={{ color: '#dc2626', marginBottom: '12px' }}>App Unavailable</h1>
         <p style={{ margin: 0, color: '#1f2937' }}>
-          Missing required VITE_FIREBASE_* values. Create a .env file from .env.example and set valid Firebase web app config values.
+          The app is not available in this environment. Please contact the administrator.
         </p>
       </div>
     </div>,

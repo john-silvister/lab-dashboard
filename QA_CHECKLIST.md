@@ -6,29 +6,31 @@ Use this after deploying:
 
 ## 1) Build and Quality Gates
 1. Run: `npm run lint`
-2. Run: `npm run build`
-3. Run: `npm run vercel-build`
-4. Run: `npm audit --omit=dev`
+2. Run: `npm test`
+3. Run: `npm run build`
+4. Run: `npm run vercel-build`
+5. Run: `npm audit --omit=dev`
 
 Expected:
 - No lint errors
+- Unit tests pass
 - Build succeeds
 - Vercel build succeeds
 - No high or critical runtime vulnerabilities
 
-## 2) Firebase Auth and Lockout Validation
+## 2) Firebase Auth and Login Throttle Validation
 1. Sign up a student account with a valid student domain email.
 2. Sign up a faculty account with a valid faculty domain email.
 3. Confirm a `profiles/{uid}` document is created in Firestore.
-4. Attempt login with the wrong password 5 times for one email.
-5. Confirm lockout message appears with remaining seconds.
-6. Close and reopen browser, retry same email.
+4. Attempt login with the wrong password 5 times in one browser session.
+5. Confirm the local throttle message appears with remaining seconds.
+6. Close and reopen browser, then confirm Firebase Auth still handles failed credentials safely.
 
 Expected:
 - Firebase Auth creates users successfully
 - Profile documents contain the expected role and university fields
-- Lockout persists through Firestore-backed `login_attempts/{emailHash}`
-- Successful login clears lockout state
+- Local throttling slows repeated mistakes without writing unauthenticated lockout records to Firestore
+- Successful login clears local throttle state
 
 ## 3) Role and Access Control
 1. Student login:

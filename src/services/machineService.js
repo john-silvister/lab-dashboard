@@ -14,10 +14,20 @@ import { securityUtils } from '@/lib/security'
 
 const nowIso = () => new Date().toISOString()
 
-const toServiceError = (err, fallback = 'An unexpected error occurred') => ({
-    message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
-    code: err?.code,
-})
+const toServiceError = (err, fallback = 'An unexpected error occurred') => {
+    if (err?.code === 'permission-denied') {
+        return { message: 'You do not have permission to perform this action.', code: err.code }
+    }
+
+    if (['failed-precondition', 'unavailable', 'internal', 'resource-exhausted'].includes(err?.code)) {
+        return { message: 'The service is temporarily unavailable. Please try again later.', code: err.code }
+    }
+
+    return {
+        message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
+        code: err?.code,
+    }
+}
 
 const fromDoc = (docSnap) => ({
     id: docSnap.id,
@@ -123,8 +133,8 @@ export const machineService = {
                 return { data: null, error: { message: 'Machine name is required' } }
             }
 
-            if (sanitizedData.image_url && !securityUtils.validateUrl(sanitizedData.image_url)) {
-                sanitizedData.image_url = ''
+            if (sanitizedData.image_url && !securityUtils.isSafeImageUrl(sanitizedData.image_url)) {
+                return { data: null, error: { message: 'Image URL must use HTTPS' } }
             }
 
             if (sanitizedData.specifications && typeof sanitizedData.specifications !== 'object') {
@@ -196,7 +206,10 @@ export const machineService = {
 
             if (updates.image_url !== undefined) {
                 const cleanedUrl = typeof updates.image_url === 'string' ? updates.image_url.trim().substring(0, 500) : ''
-                sanitizedUpdates.image_url = cleanedUrl && !securityUtils.validateUrl(cleanedUrl) ? '' : cleanedUrl
+                if (cleanedUrl && !securityUtils.isSafeImageUrl(cleanedUrl)) {
+                    return { data: null, error: { message: 'Image URL must use HTTPS' } }
+                }
+                sanitizedUpdates.image_url = cleanedUrl
             }
 
             if (typeof updates.is_active === 'boolean') {
