@@ -10,19 +10,27 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  runTransaction,
   setDoc,
 } from 'firebase/firestore'
 import { firebaseAuth, firestore } from '@/lib/firebase'
 import { securityUtils } from '@/lib/security'
-import { RATE_LIMIT } from '@/lib/constants'
 
 const nowIso = () => new Date().toISOString()
 
-const toServiceError = (err, fallback = 'An unexpected error occurred') => ({
-  message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
-  code: err?.code,
-})
+const toServiceError = (err, fallback = 'An unexpected error occurred') => {
+  if (err?.code === 'permission-denied') {
+    return { message: 'You do not have permission to perform this action.', code: err.code }
+  }
+
+  if (['failed-precondition', 'unavailable', 'internal', 'resource-exhausted'].includes(err?.code)) {
+    return { message: 'The service is temporarily unavailable. Please try again later.', code: err.code }
+  }
+
+  return {
+    message: typeof err?.message === 'string' && err.message.trim() ? err.message : fallback,
+    code: err?.code,
+  }
+}
 
 const mapAuthError = (err) => {
   const invalidCredentialCodes = new Set([
@@ -62,66 +70,6 @@ const toAuthUser = (user) => {
     displayName: user.displayName,
     photoURL: user.photoURL,
   }
-}
-
-const getLoginAttemptId = async (email) => securityUtils.hashForAvatar(email)
-
-const getLoginAttemptRef = async (email) => {
-  const attemptId = await getLoginAttemptId(email)
-  return doc(firestore, 'login_attempts', attemptId)
-}
-
-const getLockoutState = async (email) => {
-  const attemptRef = await getLoginAttemptRef(email)
-  const attemptSnap = await getDoc(attemptRef)
-
-  if (!attemptSnap.exists()) {
-    return { is_locked: false, remaining_seconds: 0 }
-  }
-
-  const attempt = attemptSnap.data()
-  const lockedUntilMs = Number(attempt.locked_until_ms || 0)
-  const remainingMs = lockedUntilMs - Date.now()
-
-  return {
-    is_locked: remainingMs > 0,
-    remaining_seconds: Math.ceil(Math.max(0, remainingMs) / 1000),
-  }
-}
-
-const recordLoginFailure = async (email) => {
-  const attemptRef = await getLoginAttemptRef(email)
-  const emailHash = attemptRef.id
-  const nowMs = Date.now()
-  const resetWindowMs = RATE_LIMIT.LOCKOUT_DURATION_MS
-
-  await runTransaction(firestore, async (transaction) => {
-    const attemptSnap = await transaction.get(attemptRef)
-    const existing = attemptSnap.exists() ? attemptSnap.data() : {}
-    const lastFailureMs = Number(existing.last_failed_at_ms || 0)
-    const lockedUntilMs = Number(existing.locked_until_ms || 0)
-    const lockExpired = lockedUntilMs > 0 && lockedUntilMs <= nowMs
-    const shouldResetCount = !lastFailureMs || nowMs - lastFailureMs > resetWindowMs || lockExpired
-    const previousCount = shouldResetCount ? 0 : Number(existing.count || 0)
-    const count = Math.min(previousCount + 1, RATE_LIMIT.MAX_LOGIN_ATTEMPTS)
-    const nextLockedUntilMs = count >= RATE_LIMIT.MAX_LOGIN_ATTEMPTS
-      ? nowMs + RATE_LIMIT.LOCKOUT_DURATION_MS
-      : 0
-
-    transaction.set(attemptRef, {
-      id: emailHash,
-      email_hash: emailHash,
-      count,
-      locked_until_ms: nextLockedUntilMs,
-      last_failed_at_ms: nowMs,
-      updated_at: nowIso(),
-    }, { merge: true })
-  })
-}
-
-const clearLoginFailures = async (email) => {
-  const attemptRef = await getLoginAttemptRef(email)
-  await deleteDoc(attemptRef)
 }
 
 const buildProfile = (user, metadata, email) => {
@@ -168,8 +116,8 @@ export const authService = {
       }
 
       const normalizedEmail = email.toLowerCase().trim()
-      const sanitizedMetadata = metadata ? securityUtils.sanitizeObject(metadata) : {}
-      const requestedRole = sanitizedMetadata.role === 'faculty' ? 'faculty' : 'student'
+      const profileMetadata = metadata && typeof metadata === 'object' ? metadata : {}
+      const requestedRole = profileMetadata.role === 'faculty' ? 'faculty' : 'student'
       const isStudentEmail = normalizedEmail.endsWith('@btech.christuniversity.in')
       const isFacultyEmail = normalizedEmail.endsWith('@christuniversity.in') && !isStudentEmail
 
@@ -184,7 +132,7 @@ export const authService = {
       const { user } = await createUserWithEmailAndPassword(firebaseAuth, normalizedEmail, password)
       createdUser = user
 
-      const profile = buildProfile(user, sanitizedMetadata, normalizedEmail)
+      const profile = buildProfile(user, profileMetadata, normalizedEmail)
       await setDoc(doc(firestore, 'profiles', user.uid), profile)
 
       if (profile.full_name) {
@@ -217,7 +165,7 @@ export const authService = {
   },
 
   /**
-   * Sign in an existing user with Firebase Auth and Firestore-backed lockout.
+   * Sign in an existing user with Firebase Auth.
    * @param {string} email
    * @param {string} password
    */
@@ -233,36 +181,13 @@ export const authService = {
 
       const normalizedEmail = email.toLowerCase().trim()
 
-      try {
-        const lockInfo = await getLockoutState(normalizedEmail)
-        if (lockInfo.is_locked) {
-          return {
-            data: null,
-            error: { message: `Too many failed attempts. Try again in ${lockInfo.remaining_seconds} seconds.` },
-          }
-        }
-      } catch (lockError) {
-        securityUtils.secureLog('warn', 'Lockout check failed, continuing with sign-in', lockError.message)
-      }
-
       const { user } = await signInWithEmailAndPassword(firebaseAuth, normalizedEmail, password)
-
-      clearLoginFailures(normalizedEmail).catch((clearError) => {
-        securityUtils.secureLog('warn', 'Failed to clear login failures', clearError.message)
-      })
 
       securityUtils.secureLog('info', 'User signin successful', { email: securityUtils.maskEmail(normalizedEmail) })
       return { data: { user: toAuthUser(user) }, error: null }
     } catch (err) {
       const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : ''
       securityUtils.secureLog('warn', 'Signin failed', { email: securityUtils.maskEmail(normalizedEmail), reason: err.message })
-
-      if (normalizedEmail) {
-        recordLoginFailure(normalizedEmail).catch((recordError) => {
-          securityUtils.secureLog('warn', 'Failed to record login failure', recordError.message)
-        })
-      }
-
       return { data: null, error: mapAuthError(err) }
     }
   },

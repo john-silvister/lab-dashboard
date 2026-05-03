@@ -109,7 +109,31 @@ service cloud.firestore {
       && request.resource.data.start_time is string
       && request.resource.data.end_time is string
       && request.resource.data.purpose is string
-      && request.resource.data.status in ['pending', 'approved', 'rejected', 'cancelled'];
+      && request.resource.data.status in ['pending', 'approved', 'rejected', 'cancelled']
+      && (request.resource.data.faculty_id == null || request.resource.data.faculty_id is string)
+      && request.resource.data.faculty_comments is string;
+    }
+
+    function bookingIdentityUnchanged() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.machine_id == resource.data.machine_id
+        && request.resource.data.student_id == resource.data.student_id
+        && request.resource.data.booking_date == resource.data.booking_date
+        && request.resource.data.start_time == resource.data.start_time
+        && request.resource.data.end_time == resource.data.end_time
+        && request.resource.data.purpose == resource.data.purpose
+        && request.resource.data.created_at == resource.data.created_at;
+    }
+
+    function facultyReviewOnly() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isFacultyOrAdmin()
+        && validBookingShape()
+        && bookingIdentityUnchanged()
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.faculty_id == request.auth.uid
+        && changed.hasOnly(['status', 'faculty_id', 'faculty_comments', 'updated_at']);
     }
 
     function ownerCancelOnly() {
@@ -137,8 +161,30 @@ service cloud.firestore {
       && request.resource.data.machine_id is string
       && request.resource.data.booking_date is string
       && request.resource.data.minute is int
+      && request.resource.data.minute >= 0
+      && request.resource.data.minute < 1440
       && request.resource.data.student_id is string
       && request.resource.data.status in ['pending', 'approved'];
+    }
+
+    function slotIdentityUnchanged() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.booking_id == resource.data.booking_id
+        && request.resource.data.machine_id == resource.data.machine_id
+        && request.resource.data.booking_date == resource.data.booking_date
+        && request.resource.data.minute == resource.data.minute
+        && request.resource.data.student_id == resource.data.student_id
+        && request.resource.data.created_at == resource.data.created_at;
+    }
+
+    function facultySlotApproveOnly() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return isFacultyOrAdmin()
+        && validSlotShape()
+        && slotIdentityUnchanged()
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'approved'
+        && changed.hasOnly(['status', 'updated_at']);
     }
 
     match /profiles/{profileId} {
@@ -185,8 +231,9 @@ service cloud.firestore {
         && request.resource.data.id == bookingId
         && request.resource.data.student_id == request.auth.uid
         && request.resource.data.status == 'pending'
-        && request.resource.data.faculty_id == null;
-      allow update: if (isFacultyOrAdmin() && validBookingShape())
+        && request.resource.data.faculty_id == null
+        && request.resource.data.faculty_comments == '';
+      allow update: if facultyReviewOnly()
         || (validBookingShape() && ownerCancelOnly());
       allow delete: if false;
     }
@@ -197,32 +244,11 @@ service cloud.firestore {
       allow create: if signedIn()
         && validSlotShape()
         && request.resource.data.id == slotId
-        && request.resource.data.student_id == request.auth.uid;
-      allow update: if isFacultyOrAdmin() && validSlotShape();
+        && request.resource.data.student_id == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if facultySlotApproveOnly();
       allow delete: if signedIn()
         && (resource.data.student_id == request.auth.uid || isFacultyOrAdmin());
-    }
-
-    match /login_attempts/{attemptId} {
-      allow get: if attemptId.matches('^[0-9a-f]{64}$');
-      allow list: if false;
-      allow create, update: if attemptId.matches('^[0-9a-f]{64}$')
-        && request.resource.data.keys().hasOnly([
-          'id',
-          'email_hash',
-          'count',
-          'locked_until_ms',
-          'last_failed_at_ms',
-          'updated_at'
-        ])
-        && request.resource.data.id == attemptId
-        && request.resource.data.email_hash == attemptId
-        && request.resource.data.count is int
-        && request.resource.data.count >= 1
-        && request.resource.data.count <= 5
-        && request.resource.data.locked_until_ms is int
-        && request.resource.data.last_failed_at_ms is int;
-      allow delete: if signedIn() && attemptId.matches('^[0-9a-f]{64}$');
     }
 
     match /booking_rules/{ruleId} {

@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { bookingService } from '@/services/bookingService';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
+import { parseDateOnlyToLocalDate } from '@/lib/bookingValidation';
 
 const FacultyDashboard = () => {
     const [pendingBookings, setPendingBookings] = useState([]);
@@ -21,6 +22,7 @@ const FacultyDashboard = () => {
     const [rejectReason, setRejectReason] = useState('');
     const [rejectLoading, setRejectLoading] = useState(false);
     const [detailBooking, setDetailBooking] = useState(null);
+    const detailBookingDate = detailBooking ? parseDateOnlyToLocalDate(detailBooking.booking_date) : null;
 
     const fetchPending = useCallback(async () => {
         setLoading(true);
@@ -142,6 +144,7 @@ const FacultyDashboard = () => {
                             {pendingBookings.map((booking, index) => {
                                 const student = booking.profiles || {};
                                 const machine = booking.machines || {};
+                                const bookingDate = parseDateOnlyToLocalDate(booking.booking_date);
                                 return (
                                     <motion.div
                                         key={booking.id}
@@ -165,7 +168,7 @@ const FacultyDashboard = () => {
                                                 </span>
                                                 <span className="flex items-center gap-1">
                                                     <Calendar className="h-3.5 w-3.5" />
-                                                    {format(new Date(booking.booking_date), 'MMM d, yyyy')}
+                                                    {bookingDate ? format(bookingDate, 'MMM d, yyyy') : 'Invalid date'}
                                                 </span>
                                                 <span className="flex items-center gap-1">
                                                     <Clock className="h-3.5 w-3.5" />
@@ -262,7 +265,7 @@ const FacultyDashboard = () => {
                                     <h4 className="font-semibold">Booking Details</h4>
                                     <p>Machine: {detailBooking.machines?.name}</p>
                                     <p>Location: {detailBooking.machines?.location || 'N/A'}</p>
-                                    <p>Date: {format(new Date(detailBooking.booking_date), 'MMMM d, yyyy')}</p>
+                                    <p>Date: {detailBookingDate ? format(detailBookingDate, 'MMMM d, yyyy') : 'Invalid date'}</p>
                                     <p>Time: {detailBooking.start_time?.slice(0, 5)} - {detailBooking.end_time?.slice(0, 5)}</p>
                                     <p>Purpose: {detailBooking.purpose || 'Not specified'}</p>
                                     <p className="text-muted-foreground">Submitted {formatDistanceToNow(new Date(detailBooking.created_at), { addSuffix: true })}</p>

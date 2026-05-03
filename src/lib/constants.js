@@ -29,5 +29,5 @@ export const EMAIL_DOMAINS = {
 export const RATE_LIMIT = {
     MAX_LOGIN_ATTEMPTS: 5,
     LOCKOUT_DURATION_MS: 5 * 60 * 1000, // 5 minutes
-    STORAGE_KEY: '_rl_auth_state'
+    STORAGE_KEY: '_rl_auth_state' // Client-side UX throttle only; Firebase Auth enforces abuse controls.
 };

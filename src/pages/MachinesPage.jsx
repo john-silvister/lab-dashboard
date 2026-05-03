@@ -147,7 +147,6 @@ const MachinesPage = () => {
                 )}
             </div>
 
-            {/* Placeholder for Booking Modal, will implement in next step */}
             {isBookModalOpen && (
                 <BookingModal
                     machine={selectedMachine}

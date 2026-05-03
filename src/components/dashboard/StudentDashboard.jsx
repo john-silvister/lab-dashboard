@@ -9,6 +9,7 @@ import { bookingService } from '@/services/bookingService';
 // eslint-disable-next-line no-unused-vars -- motion.div used in JSX
 import { motion } from 'framer-motion';
 import { format, isFuture } from 'date-fns';
+import { parseDateOnlyToLocalDate } from '@/lib/bookingValidation';
 
 const BentoGridItem = ({ className, children, delay = 0 }) => (
     <motion.div
@@ -121,7 +122,9 @@ const StudentDashboard = () => {
                                 No upcoming bookings. <Link to="/machines" className="text-primary hover:underline">Browse machines</Link> to get started.
                             </div>
                         ) : (
-                            upcomingBookings.map((booking) => (
+                            upcomingBookings.map((booking) => {
+                                const bookingDate = parseDateOnlyToLocalDate(booking.booking_date);
+                                return (
                                 <div key={booking.id} className="flex items-center justify-between p-4 border-b last:border-0 hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-4">
                                         <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
@@ -130,7 +133,7 @@ const StudentDashboard = () => {
                                         <div>
                                             <p className="font-medium text-sm">{booking.machines?.name || 'Machine'}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                {format(new Date(booking.booking_date), 'MMM d')} at {booking.start_time?.slice(0, 5)}
+                                                {bookingDate ? format(bookingDate, 'MMM d') : 'Invalid date'} at {booking.start_time?.slice(0, 5)}
                                             </p>
                                         </div>
                                     </div>
@@ -138,7 +141,8 @@ const StudentDashboard = () => {
                                         {booking.status}
                                     </Badge>
                                 </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </BentoGridItem>

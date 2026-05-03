@@ -22,7 +22,7 @@ A full-stack lab equipment booking system for university environments. Students 
 - **Admin panel** -- Machine CRUD management and booking oversight
 - **Conflict detection** -- Firestore transactions reserve per-minute `booking_slots` for active requests
 - **Responsive design** -- Mobile-optimized layouts, touch-friendly controls, and responsive grids
-- **Security hardened** -- Input sanitization, Firestore rules, hashed lockout state, secure logging, Vercel security headers
+- **Security hardened** -- Input sanitization, strict Firestore rules, client-side login throttling, secure logging, Vercel security headers
 
 ---
 
@@ -57,6 +57,7 @@ src/
     useAuth.js      -- Firebase Auth context provider + hook
   lib/
     constants.js    -- App-wide constants
+    bookingValidation.js -- Booking date/time validation helpers
     firebase.js     -- Firebase client initialization
     security.js     -- Input validation, rate limiting, secure logging
     utils.js        -- cn() utility
@@ -76,7 +77,7 @@ firebase/
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ (Node 22 recommended)
 - A Firebase project with Authentication and Cloud Firestore enabled
 - Firebase CLI if you want to deploy rules/indexes from this repo
 
@@ -100,6 +101,15 @@ VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 VITE_FIREBASE_APP_ID=your-app-id
 VITE_FIREBASE_MEASUREMENT_ID=your-measurement-id
+```
+
+Optional values for the internal Google Sheets audit webhook at `/api/internal/sync`:
+
+```env
+INTERNAL_WEBHOOK_SECRET=your-shared-secret
+GCP_CLIENT_EMAIL=your-service-account@your-project-id.iam.gserviceaccount.com
+GCP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+AUDIT_SHEET_ID=your-google-sheet-id
 ```
 
 ### Firebase Setup
@@ -137,7 +147,6 @@ npm run preview
 - **machines** -- Lab equipment with name, location, specs object, and active flag
 - **bookings** -- Links students to machines with date, time, purpose, and status
 - **booking_slots** -- Per-minute active booking locks used by Firestore transactions to block overlaps
-- **login_attempts** -- Hashed-email lockout tracking for failed sign-in attempts
 - **booking_rules** -- Reserved for future per-machine constraints
 - **audit_log** -- Reserved for future server-side audit events
 
@@ -148,6 +157,7 @@ Key controls:
 - Students see active machines; faculty/admin users can manage the full machine catalog
 - New signups create `profiles/{uid}` documents during Firebase Auth signup
 - Booking creation checks and reserves every minute in the requested interval inside a Firestore transaction
+- Repeated failed login attempts are throttled locally in the browser; Firebase Auth remains the authoritative abuse-control layer
 
 See [firebase/README.md](firebase/README.md) for migration notes and deployment details.
 
@@ -161,7 +171,22 @@ See [firebase/README.md](firebase/README.md) for migration notes and deployment 
 | `npm run build` | Production build |
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run unit tests |
 | `npm run vercel-build` | Lint and build for Vercel deployment |
+
+---
+
+## CI/CD
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs:
+
+```bash
+npm ci
+npm run lint
+npm test
+npm run build
+npm audit --omit=dev
+```
 
 ---
 

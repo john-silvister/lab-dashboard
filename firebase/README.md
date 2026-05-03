@@ -8,8 +8,9 @@ This project now uses Firebase Authentication and Cloud Firestore.
 - `machines/{machineId}`: lab machine catalog.
 - `bookings/{bookingId}`: booking requests and approval state.
 - `booking_slots/{machineId}_{date}_{HHmm}`: one document per booked minute, used by transactions to prevent overlapping active bookings.
-- `login_attempts/{emailHash}`: hashed-email lockout state for failed sign-in attempts.
 - `booking_rules/{ruleId}` and `audit_log/{logId}`: reserved collections for future rule and audit workflows.
+
+Login throttling is intentionally not stored in Firestore. The browser applies a local UX throttle, and Firebase Auth remains the authoritative abuse-control layer.
 
 ## Deploy
 
